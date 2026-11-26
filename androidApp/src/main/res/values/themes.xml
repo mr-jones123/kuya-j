@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.KuyaJ" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/kuya_background</item>
+    </style>
+    <color name="kuya_background">#E7F1FF</color>
+</resources>
