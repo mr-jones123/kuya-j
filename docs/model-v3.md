@@ -2,7 +2,8 @@
 
 **Kuya J v3** is Gemma 4 E2B fine-tuned to be Kuya J: when asked about a government service, it searches the
 records with English keywords, then answers in the asker's language using only what it found, ending with the
-source. It's `sapinsapin/kuya-j-gemma4-e2b` on Hugging Face (private while under review).
+source. It's public on Hugging Face as [sapinsapin/kuya-j-gemma4-e2b](https://huggingface.co/sapinsapin/kuya-j-gemma4-e2b),
+and it's what the app downloads.
 
 ## Why fine-tune at all
 

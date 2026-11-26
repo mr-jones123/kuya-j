@@ -8,6 +8,9 @@ from and the date it was checked.
 Kuya J is a [BetterGov.ph](https://bettergov.ph) project. The web version runs at
 [chat.bettergov.ph](https://chat.bettergov.ph); this repository is the offline mobile app.
 
+**Model:** [sapinsapin/kuya-j-gemma4-e2b](https://huggingface.co/sapinsapin/kuya-j-gemma4-e2b) on Hugging Face,
+Gemma 4 E2B fine-tuned for Kuya J (LiteRT-LM for Android, GGUF for llama.cpp, and the LoRA adapter).
+
 <p>
   <img src="docs/images/home.png" width="230" alt="Home screen: a blue welcome band, six topic tiles and example questions">
   <img src="docs/images/fee.png" width="230" alt="An answer card showing PHP 130 for the NBI clearance, with its source">
@@ -34,7 +37,7 @@ the source attached so they can trust it. [Read the full vision](docs/vision.md)
 | Safety | Refuses political opinions, legal and medical advice, and prompt probing; never invents an official | [Safety](docs/safety.md) |
 | Reads photos | Attach a photo of a form or sign; the model reads it and Kuya J answers from the records | [How answering works](docs/answering.md#photos) |
 | Record updates | Signed record bundles download on Wi-Fi; a bad signature is rejected and the old records stay | [Record sync](docs/sync.md) |
-| On-device model | Gemma 4 E2B fine-tuned for Kuya J, run with LiteRT-LM on NPU, GPU or CPU | [On-device model](docs/on-device-model.md) |
+| On-device model | [Kuya J v3](https://huggingface.co/sapinsapin/kuya-j-gemma4-e2b): Gemma 4 E2B fine-tuned for Kuya J, run with LiteRT-LM on GPU or CPU | [On-device model](docs/on-device-model.md) |
 | Works without the model | Before the 3 GB model is downloaded, Kuya J answers with the matching record as written | [How answering works](docs/answering.md#without-the-model) |
 
 ## How it works
@@ -75,14 +78,15 @@ Requirements: JDK 17+, Android SDK (API 37), an arm64 phone or emulator.
 ```
 
 The app runs on its built-in records right away. To get AI answers, open Settings and download the model on
-Wi-Fi, or push a model file for testing. [Development guide](docs/development.md).
+Wi-Fi (3.0 GB, from [Hugging Face](https://huggingface.co/sapinsapin/kuya-j-gemma4-e2b)), or push a model file for
+testing. [Development guide](docs/development.md).
 
 ## Documentation
 
 - **The app:** [Architecture](docs/architecture.md) · [How answering works](docs/answering.md) ·
   [Records](docs/records.md) · [Search](docs/search.md) · [Safety](docs/safety.md) · [The app UI](docs/ui.md) ·
   [On-device model](docs/on-device-model.md) · [Record sync](docs/sync.md) · [Development](docs/development.md)
-- **The AI:** [The synthetic dataset](docs/dataset.md) · [The v3 model](docs/model-v3.md)
+- **The AI:** [The synthetic dataset](docs/dataset.md) · [The v3 model](docs/model-v3.md) · [Model on Hugging Face](https://huggingface.co/sapinsapin/kuya-j-gemma4-e2b)
 - **Why:** [Vision](docs/vision.md)
 
 ## Credits

@@ -7,13 +7,18 @@ runtime for language models on mobile. Nothing is sent to a server. The code is 
 
 | Build | File | Size | Runs on |
 |---|---|---|---|
-| Stock Gemma 4 E2B (current download) | `gemma-4-E2B-it.litertlm` | 2.6 GB | GPU, then CPU |
-| Gemma 4 E2B for Tensor G5 / G6 | `gemma-4-E2B-it_Google_Tensor_G*.litertlm` | 3.2-3.5 GB | That chip's NPU |
-| **Kuya J v3** (fine-tuned) | `kuyaj-v3.litertlm` | 3.0 GB | GPU, then CPU |
+| **Kuya J v3** (the download) | `kuyaj-v3.litertlm` | 3.0 GB | GPU, then CPU |
+| Stock Gemma 4 E2B | `gemma-4-E2B-it.litertlm` | 2.6 GB | GPU, then CPU |
+| Stock Gemma 4 E2B for Tensor G5 / G6 | `gemma-4-E2B-it_Google_Tensor_G*.litertlm` | 3.2-3.5 GB | That chip's NPU |
 
-`ModelCatalog.forThisDevice()` picks the NPU build matching the phone's chip (`Build.SOC_MODEL`), else the generic
-GPU/CPU build. The [v3 model](model-v3.md) is trained to search and answer in Philippine languages; it currently
-loads as the debug-only custom model (below) until it's published for download.
+`ModelCatalog.forThisDevice()` returns [Kuya J v3](model-v3.md), downloaded from
+[sapinsapin/kuya-j-gemma4-e2b](https://huggingface.co/sapinsapin/kuya-j-gemma4-e2b). The URL is pinned to a
+commit, so the file behind it can't change under the checksum. The stock builds stay in the catalog
+(`stockForThisDevice()` picks the NPU build for the phone's chip) for when v3 gets NPU builds of its own; stock
+Gemma doesn't search, so it isn't offered today.
+
+When v3 verifies, any older model file in the folder (for example stock Gemma from an earlier app version) is
+deleted, so the phone doesn't keep 2.6 GB it no longer uses.
 
 Gemma 4 E2B has about 2 billion effective parameters, reads images, and handles a 4,096-token context here.
 
@@ -25,7 +30,7 @@ Gemma 4 E2B has about 2 billion effective parameters, reads images, and handles 
    disallowed, so it never uses mobile data. It shows a system notification and survives the app closing.
 2. **Checked before use.** When the download finishes, the file's size and SHA-256 must match the catalog, or the
    file is deleted. A file pushed by hand is checked the same way.
-3. **Checked once.** Hashing 2.6 GB takes a while, so a verified file is remembered by its size and timestamp.
+3. **Checked once.** Hashing 3 GB takes a while, so a verified file is remembered by its size and timestamp.
 
 The states (`ModelState`): Missing → Downloading (progress) → Verifying → Ready, or Failed with a reason. The
 settings sheet shows each one.

@@ -32,7 +32,23 @@ data class ModelVariant(
 object ModelCatalog {
     private const val BASE = "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/"
 
-    // Sizes and hashes from the Hugging Face file listing, 2026-11-16.
+    /**
+     * Kuya J v3: Gemma 4 E2B fine-tuned to search the records and answer in Philippine languages.
+     * Pinned to a commit so the file behind the URL can't change under the checksum.
+     */
+    val KUYAJ_V3 = ModelVariant(
+        id = "kuyaj-v3",
+        label = "Kuya J v3 (Gemma 4 E2B)",
+        fileName = "kuyaj-v3.litertlm",
+        url = "https://huggingface.co/sapinsapin/kuya-j-gemma4-e2b/resolve/5bdb83c76778846d013704b17f95cef3fe72f25e/kuyaj-v3.litertlm",
+        sha256 = "89242b1f95a1fea28450800e5d2c5b3b07bd78a6b6f573c6cb4227511cfaeb71",
+        sizeBytes = 3_012_955_472,
+        backends = listOf("GPU", "CPU"),
+        toolSearch = true,
+    )
+
+    // Stock Gemma builds, sizes and hashes from the Hugging Face file listing, 2026-11-16. Not selected while v3 has
+    // no NPU build. ponytail: compile v3 for Tensor/Qualcomm NPUs and select it per chip like these.
     val GENERIC = ModelVariant(
         id = "gemma4-e2b",
         label = "Gemma 4 E2B (GPU/CPU)",
@@ -73,12 +89,15 @@ object ModelCatalog {
         url = "", sha256 = "", sizeBytes = -1, backends = listOf("GPU", "CPU"), toolSearch = true,
     )
 
-    /** The pushed custom model on a debug build, else the NPU build for this phone's chip, else the generic GPU/CPU build. */
+    /** The pushed custom model on a debug build, else Kuya J v3. */
     fun forThisDevice(context: Context): ModelVariant =
         if (BuildConfig.DEBUG && File(context.getExternalFilesDir(null), "models/${CUSTOM.fileName}").exists()) CUSTOM
         else forThisDevice()
 
-    fun forThisDevice(): ModelVariant {
+    fun forThisDevice(): ModelVariant = KUYAJ_V3
+
+    /** The stock NPU build for this phone's chip, else the stock GPU/CPU build. */
+    fun stockForThisDevice(): ModelVariant {
         val soc = if (Build.VERSION.SDK_INT >= 31) Build.SOC_MODEL else ""
         return NPU_BUILDS.firstOrNull { v -> v.socModels.any { it.equals(soc, ignoreCase = true) } } ?: GENERIC
     }
@@ -162,6 +181,9 @@ class ModelManager(private val context: Context, val variant: ModelVariant = Mod
         }
         if (ok) {
             prefs.edit().putString("verified:${variant.id}", "${file.length()}:${file.lastModified()}").apply()
+            // A model from an older app version (e.g. stock Gemma before v3) would otherwise keep ~2.6 GB.
+            file.parentFile?.listFiles()?.filter { it != file && it.name != ModelCatalog.CUSTOM.fileName && it.name.endsWith(".litertlm") }
+                ?.forEach { it.delete() }
             _state.value = ModelState.Ready
         } else {
             file.delete()

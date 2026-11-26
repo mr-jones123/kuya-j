@@ -37,7 +37,7 @@ backends per build).
 
 The app works without a model (records only). To test AI answers:
 
-- **From the app:** Settings → AI model → *Download on Wi-Fi* (2.6 GB, stock Gemma).
+- **From the app:** Settings → AI model → *Download on Wi-Fi* (3.0 GB, Kuya J v3).
 - **A fine-tuned model:** push it as `custom.litertlm` on a debug build; see
   [On-device model](on-device-model.md#testing-a-fine-tuned-model).
 
