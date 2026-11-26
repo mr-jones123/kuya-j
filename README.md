@@ -72,7 +72,20 @@ and [the v3 model](docs/model-v3.md) pages describe them.
 
 ## Quick start
 
-Requirements: JDK 17+, Android SDK (API 37), an arm64 phone or emulator.
+Requirements: JDK 17+, Android SDK (API 37), and an Android device to run it on.
+
+### Choose where to run it
+
+| Device | AI answers | Use it for |
+|---|---|---|
+| **A real Android phone** (recommended) | About 4-8 s on the phone's GPU | Everything; this is how people will use Kuya J |
+| **[Qualcomm Device Cloud](https://qdc.qualcomm.com)** (recommended if you have no phone) | Same as a real phone: it *is* a real Snapdragon phone, reached over the internet | Testing on real hardware from your laptop |
+| **Android emulator** | Very slow: CPU only, answers often hit the 60-second limit and fall back to the record as written | Checking screens and layout; fine if you accept the wait |
+
+The emulator works, but it can't use a phone GPU, so the 3 GB model crawls. Choose it only if slow AI answers are
+fine for what you're checking. [How to connect each one](docs/development.md#choosing-a-device).
+
+### Build and run
 
 ```bash
 ./gradlew :androidApp:installDebug       # build and install

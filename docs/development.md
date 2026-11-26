@@ -4,7 +4,8 @@
 
 - JDK 17 or newer
 - Android SDK with API 37 (`compileSdk`/`targetSdk`), min SDK 26
-- An arm64 phone, or an arm64 emulator. LiteRT-LM ships native code for `arm64-v8a` and `x86_64` only.
+- An Android device: a real phone, a Qualcomm Device Cloud phone, or an emulator ([choosing a device](#choosing-a-device)).
+  LiteRT-LM ships native code for `arm64-v8a` and `x86_64` only.
 - For the iOS compile check: Xcode command-line tools (Kotlin/Native downloads its own toolchain, about 2.4 GB)
 
 Versions: Kotlin 2.4.20, AGP 9.5.0, Compose Multiplatform 1.12.2, Gradle 9.7.0 (wrapper).
@@ -43,6 +44,57 @@ The app works without a model (records only). To test AI answers:
 
 On an emulator, the model runs on CPU and may hit the 60-second deadline, so you'll mostly see records as written.
 Use a real phone to judge AI answers.
+
+## Choosing a device
+
+Kuya J's model needs a phone GPU (or NPU) to answer quickly. Pick by what you're checking:
+
+| Device | Model speed | Good for |
+|---|---|---|
+| Real Android phone | First word in about 2-3 s, full answer in 4-8 s (Snapdragon, GPU) | Everything, especially judging answers and languages |
+| Qualcomm Device Cloud | Same as a real phone | Real-hardware testing without owning the phone |
+| Android emulator | CPU only; answers often take over a minute and fall back to the record | Screens, layout, records-only answers |
+
+### A real phone
+
+1. Turn on *Developer options* (tap *Build number* seven times in *About phone*), then *USB debugging*.
+2. Connect it by USB and accept the prompt on the phone. `adb devices` should list it.
+3. `./gradlew :androidApp:installDebug`, open Kuya J, then Settings → *Download on Wi-Fi*.
+
+The phone needs about 3.5 GB free for the model.
+
+### Qualcomm Device Cloud
+
+[Qualcomm Device Cloud](https://qdc.qualcomm.com) (QDC) lends you a real Snapdragon phone in a browser session and
+exposes its adb over SSH.
+
+1. Sign in, start an interactive session on a phone, and download the session's SSH key. Each session has its own
+   key and device address.
+2. Stop your local adb server, because the tunnel uses the same port: `adb kill-server`.
+3. Open the tunnel QDC shows for the session, and leave it running:
+   ```bash
+   ssh -i <session-key>.pem -L 5037:<device-address>:5037 -N sshtunnel@ssh.qdc.qualcomm.com
+   ```
+4. In another terminal, `adb devices` now lists the cloud phone. Install as usual:
+   `./gradlew :androidApp:installDebug`.
+5. **Open Kuya J once before pushing any files**, so Android creates the app's folder with the right owner; a folder
+   that adb creates first is unreadable to the app.
+6. Download the model from Settings on the phone's Wi-Fi, or push it (see
+   [testing a fine-tuned model](on-device-model.md#testing-a-fine-tuned-model)).
+
+When the session ends, the key stops working; start a new session for a new one. Restart your local adb server
+(`adb start-server`) to use local devices again.
+
+### Android emulator
+
+Use an arm64 system image on Apple silicon (x86_64 elsewhere). The emulator's network is mobile data by default and
+the model only downloads on Wi-Fi, so connect it to its built-in Wi-Fi first:
+
+```bash
+adb shell cmd wifi connect-network AndroidWifi open
+```
+
+Then download the model from Settings. Expect slow AI answers; for screens and records-only answers it's fine.
 
 ## Driving the app from the command line
 
