@@ -2,7 +2,8 @@
 
 Kuya J's model learns from **synthetic** training data: questions and answers written by a large model (the
 *teacher*) from Kuya J's records, filtered hard, and reviewed. No real conversations are used. The dataset is
-`sapinsapin/kuya-j-distill` on Hugging Face (private while under review); the scripts are in the evals repository
+[sapinsapin/kuya-j-distill](https://huggingface.co/datasets/sapinsapin/kuya-j-distill) on Hugging Face (public,
+CC BY 4.0); the scripts are in the evals repository
 (`kuya-j-evals/distill/`).
 
 ## Why synthetic data
@@ -126,10 +127,10 @@ missed stayed in context format.
   record set from BetterGov.ph's public data is in progress.
 - **Records are dated** (mostly October 2026). That's fine for training, because the model learns to copy from the
   records, not to remember them.
-- **Teacher terms.** The answers were written by GLM via Nyolab, and language ID uses halo-lid (CC BY-NC 4.0,
-  research use). The dataset stays private until its licence is settled.
+- **How it was generated.** The answers were written by GLM via Nyolab. Language ID used halo-lid (CC BY-NC 4.0) as
+  a filter only; none of it is in the dataset.
 
-## Credits
+## Licence and credits
 
-The 27 source records come from [Airgap](https://github.com/xmpuspus/airgap)'s government-services example
+The dataset is released under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The 27 source records come from [Airgap](https://github.com/xmpuspus/airgap)'s government-services example
 (MIT, © 2026 Xavier Puspus), written from official government pages.

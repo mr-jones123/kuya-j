@@ -10,6 +10,8 @@ Kuya J is a [BetterGov.ph](https://bettergov.ph) project. The web version runs a
 
 **Model:** [sapinsapin/kuya-j-gemma4-e2b](https://huggingface.co/sapinsapin/kuya-j-gemma4-e2b) on Hugging Face,
 Gemma 4 E2B fine-tuned for Kuya J (LiteRT-LM for Android, GGUF for llama.cpp, and the LoRA adapter).
+**Training data:** [sapinsapin/kuya-j-distill](https://huggingface.co/datasets/sapinsapin/kuya-j-distill), 1,187
+synthetic examples in Philippine languages (CC BY 4.0).
 
 <p>
   <img src="docs/images/home.png" width="230" alt="Home screen: a blue welcome band, six topic tiles and example questions">
@@ -86,7 +88,7 @@ testing. [Development guide](docs/development.md).
 - **The app:** [Architecture](docs/architecture.md) · [How answering works](docs/answering.md) ·
   [Records](docs/records.md) · [Search](docs/search.md) · [Safety](docs/safety.md) · [The app UI](docs/ui.md) ·
   [On-device model](docs/on-device-model.md) · [Record sync](docs/sync.md) · [Development](docs/development.md)
-- **The AI:** [The synthetic dataset](docs/dataset.md) · [The v3 model](docs/model-v3.md) · [Model on Hugging Face](https://huggingface.co/sapinsapin/kuya-j-gemma4-e2b)
+- **The AI:** [The synthetic dataset](docs/dataset.md) · [The v3 model](docs/model-v3.md) · [Model on Hugging Face](https://huggingface.co/sapinsapin/kuya-j-gemma4-e2b) · [Dataset on Hugging Face](https://huggingface.co/datasets/sapinsapin/kuya-j-distill)
 - **Why:** [Vision](docs/vision.md)
 
 ## Credits
