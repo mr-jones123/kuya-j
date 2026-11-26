@@ -17,6 +17,7 @@ import java.util.concurrent.TimeUnit
 class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
         val app = applicationContext as KuyaJApp
+        app.container.store.awaitReady() // let startup finish loading records first, so they don't replace a fresh bundle
         return when (val r = app.container.bundleSync.sync()) {
             is BundleSync.Result.Updated, BundleSync.Result.UpToDate -> Result.success()
             // A bad signature will not fix itself on retry; a network error might.

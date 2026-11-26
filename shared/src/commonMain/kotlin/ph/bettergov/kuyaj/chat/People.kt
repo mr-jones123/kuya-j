@@ -4,13 +4,11 @@ import ph.bettergov.kuyaj.kb.KbRecord
 import ph.bettergov.kuyaj.kb.SearchIndex
 
 /**
- * When someone was born or died is a fixed fact, so code answers it from the NHCP's historical marker, quoting the
- * marker's own sentence: "Kailan ipinanganak si Rizal?" -> "ISINILANG SA CALAMBA, LAGUNA, 19 HUNYO 1861."
+ * For "Kailan ipinanganak si Rizal?", code picks the NHCP marker that records the birth (or death) of the person
+ * named, so the model answers from the right record: search alone ranks dozens of Rizal markers by word overlap.
  * Person markers carry metadata.person ("Jose Rizal"), lifeYears and personMarkers (from tools/records/harvest_nhcp.py).
  */
 object People {
-    data class Answer(val text: String, val record: KbRecord)
-
     private val BIRTH_Q = Regex("""\b(born|birth|birthday|ipinanganak|isinilang|sinilang|kapanganakan|kaarawan|natawo|gipanganak|nayanak|kaadlawan)\b""")
     private val DEATH_Q = Regex("""\b(died|death|die|namatay|kamatayan|pumanaw|binaril|pinatay|nasawi|binitay|executed|namatyan|natay)\b""")
     private val BIRTH = Regex("""ISINILANG|IPINANGANAK|SINILANG|BORN|NATAWO|KAPANGANAKAN""", RegexOption.IGNORE_CASE)
@@ -30,7 +28,20 @@ object People {
         return q.indices.filter { q[it] in name }.all { i -> i == 0 || q[i - 1] in name || q[i - 1] in NOT_A_NAME }
     }
 
-    fun answer(question: String, records: List<KbRecord>): Answer? {
+    fun isLifeQuestion(question: String) = question.lowercase().let { BIRTH_Q.containsMatchIn(it) || DEATH_Q.containsMatchIn(it) }
+
+    /**
+     * For a birth or death question code couldn't answer: true if this title names someone the question names. Without
+     * it, "Kailan ipinanganak si Juan Dela Cruz?" matched the "Dela Fuente-Villaroman Ancestral House" marker on "dela".
+     * A prefix counts, so "Lapu-Lapu" names "Lapulapu".
+     */
+    fun names(question: String, title: String): Boolean {
+        val asked = words(question).filter { it !in NOT_A_NAME && it.length >= 3 && !BIRTH_Q.matches(it) && !DEATH_Q.matches(it) }
+        val t = words(title)
+        return asked.any { a -> t.any { it.startsWith(a) } }
+    }
+
+    fun record(question: String, records: List<KbRecord>): KbRecord? {
         val q = question.lowercase()
         val birth = BIRTH_Q.containsMatchIn(q)
         if (!birth && !DEATH_Q.containsMatchIn(q)) return null
@@ -44,14 +55,9 @@ object People {
             else Triple(recs, hit, recs.sumOf { (it.metadata["personMarkers"] as? Number)?.toInt() ?: 1 })
         }.maxWithOrNull(compareBy({ it.second }, { it.third })) ?: return null
         val want = if (birth) BIRTH else DEATH
-        for (r in best.first) {
+        return best.first.firstOrNull { r ->
             val marker = r.content.substringAfter("Marker text:\n").substringBeforeLast("\nSource:")
-            val sentence = marker.replace("\n", " ").split(Regex("""(?<=[.;])\s+""")).firstOrNull { want.containsMatchIn(it) } ?: continue
-            val who = r.metadata["person"] as String
-            val years = r.metadata["lifeYears"] as? String
-            val line = "$who${years?.let { " ($it)" } ?: ""}. Ayon sa marker ng NHCP: \"${sentence.trim()}\""
-            return Answer("$line\n\n${r.content}", r)
+            want.containsMatchIn(marker)
         }
-        return null
     }
 }

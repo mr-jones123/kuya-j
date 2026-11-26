@@ -43,8 +43,10 @@ class KuyaJApp : Application() {
 class AppContainer(private val context: Context) : KuyaServices {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
-    val store = KnowledgeStore(loadBuiltIn(context))
-    val bundleSync = BundleSync(context, store, builtInVersion(context)).apply { loadInstalled() }
+    // Records load in the background: parsing a few MB of JSON and indexing thousands of records on the main thread
+    // froze the app at startup (Android killed it as not responding). Questions wait for them (KnowledgeStore.awaitReady).
+    val store = KnowledgeStore()
+    val bundleSync = BundleSync(context, store, builtInVersion(context))
     val models = ModelManager(context)
     val engine = LiteRtLmEngine(context)
 
@@ -68,6 +70,17 @@ class AppContainer(private val context: Context) : KuyaServices {
     )
 
     init {
+        scope.launch {
+            val t0 = System.currentTimeMillis()
+            val records = loadBuiltIn(context)
+            val t1 = System.currentTimeMillis()
+            store.loadBuiltIn(records)
+            val t2 = System.currentTimeMillis()
+            bundleSync.loadInstalled()
+            store.markReady()
+            refreshSyncStatus()
+            android.util.Log.i("KuyaJ.Records", "${records.size} records: parse ${t1 - t0} ms, index ${t2 - t1} ms, bundle ${System.currentTimeMillis() - t2} ms")
+        }
         scope.launch {
             models.refresh()
             loadModelIfReady()

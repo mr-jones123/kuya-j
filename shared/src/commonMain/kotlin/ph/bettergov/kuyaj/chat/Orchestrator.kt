@@ -52,6 +52,7 @@ class Orchestrator(
     }
 
     suspend fun reply(input: String, photo: ByteArray? = null, onText: (String) -> Unit = {}): Reply {
+        store.awaitReady()
         val reply = route(input.trim(), photo, onText)
         history.addLast(Turn(input.trim(), reply.text))
         while (history.size > 3) history.removeFirst()
@@ -76,12 +77,16 @@ class Orchestrator(
         // Personal questions to Kuya J ("kumusta ang araw mo?", "mahal mo ba ako?") before search: their everyday words
         // ("araw", "mahal") would otherwise match holiday names or marker text.
         if (PERSONAL.containsMatchIn(plain)) return system(SMALL_TALK_REPLY)
-        // Holiday dates and when someone was born or died are fixed facts: answered from the record by code.
+        // Holiday dates are fixed facts: answered from the record by code.
         if (photo == null) Holidays.answer(text, store.state.records, today())?.let {
             return Reply(withStaleness(it.text), Reply.Kind.RECORD, listOf(it.record))
         }
-        if (photo == null) People.answer(text, store.state.records)?.let {
-            return Reply(withStaleness(it.text), Reply.Kind.RECORD, listOf(it.record))
+        // "Kailan ipinanganak si Rizal?": code picks the marker that records it; the model words the answer from it.
+        val pinned = if (photo == null) People.record(text, store.state.records) else null
+        // Someone with no marker: a history match must still name them, or it's another person's (or a house's) marker.
+        // Other categories pass: "birth certificate" and "SSS death benefit" are birth and death words too.
+        if (photo == null && pinned == null && People.isLifeQuestion(text)) search(text).firstOrNull()?.record?.let {
+            if (it.category == "history" && !People.names(text, it.title)) return Reply(FALLBACK, Reply.Kind.SYSTEM)
         }
         // A doubt check replays the record. The model is not asked again, so the answer cannot move.
         if (DOUBT.containsMatchIn(text)) {
@@ -101,17 +106,17 @@ class Orchestrator(
 
         // Tool mode, for a model trained to search: it picks the keywords, the app runs its own search.
         // Follow-ups and photos stay on the path below, as in training.
-        if (engine != null && photo == null && history.isEmpty()) toolAnswer(engine, question, onText)?.let { return it }
+        if (engine != null && photo == null && history.isEmpty()) toolAnswer(engine, question, pinned, onText)?.let { return it }
         var hits = search(question)
         if (hits.isEmpty() && history.isNotEmpty() && SearchTerms.count(text) <= 4) {
             hits = search("${history.last().user} $text") // short follow-up
         }
-        if (hits.isEmpty()) {
+        if (hits.isEmpty() && pinned == null) {
             val fallback = if (photo == null && SMALL_TALK.containsMatchIn(plain)) SMALL_TALK_REPLY else FALLBACK
             return Reply(fallback, Reply.Kind.SYSTEM, photoReading = photoReading)
         }
 
-        val records = hits.map { it.record }
+        val records = (listOfNotNull(pinned) + hits.map { it.record }).distinctBy { it.id }.take(TOP_K)
         val top = records.first()
         val recordReply = Reply(withStaleness(top.content), Reply.Kind.RECORD, records, photoReading = photoReading)
         if (engine == null || top.verbatim) return recordReply
@@ -128,7 +133,7 @@ class Orchestrator(
      * and checks the answer against what it returned. Null when the model can't search, didn't, or found nothing:
      * the caller then searches the question itself.
      */
-    private suspend fun toolAnswer(engine: LlmEngine, question: String, onText: (String) -> Unit): Reply? {
+    private suspend fun toolAnswer(engine: LlmEngine, question: String, pinned: KbRecord?, onText: (String) -> Unit): Reply? {
         var found = emptyList<KbRecord>()
         var gate: Safety.TokenGate? = null // made once records arrive; text before any search is never shown
         val live = Live()
@@ -138,8 +143,8 @@ class Orchestrator(
                 // makes the model's keywords miss what the person asked.
                 val byKeywords = search(query)
                 val byQuestion = search(question)
-                val hits = (byKeywords.take(TOP_K - 1) + byQuestion.take(1) + byKeywords.drop(TOP_K - 1) + byQuestion.drop(1))
-                    .distinctBy { it.record.id }.take(TOP_K).map { it.record }
+                val hits = (listOfNotNull(pinned) + (byKeywords.take(TOP_K - 1) + byQuestion.take(1) + byKeywords.drop(TOP_K - 1)
+                    + byQuestion.drop(1)).map { it.record }).distinctBy { it.id }.take(TOP_K)
                 // ponytail: a second call widens the sources and restarts the gate; the model makes one call in practice.
                 found = (found + hits).distinctBy { it.id }
                 gate = Safety.TokenGate(Safety.sources(found, question, NAMES), onText)
@@ -149,7 +154,7 @@ class Orchestrator(
         if (generated is ModelRun.Done && generated.text == null) return null // not a searching model
         if (found.isEmpty()) return null
         // If the model's answer is withheld, show the record closest to the question ("Bonifacio Day 2026", not 2025).
-        found = bySupport(found, question)
+        found = (listOfNotNull(pinned) + bySupport(found, question)).distinctBy { it.id }
         val top = found.first()
         val recordReply = Reply(withStaleness(top.content), Reply.Kind.RECORD, found)
         if (top.verbatim) return recordReply

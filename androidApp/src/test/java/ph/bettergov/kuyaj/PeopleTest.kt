@@ -12,12 +12,13 @@ import ph.bettergov.kuyaj.kb.KbRecord
 import ph.bettergov.kuyaj.kb.KnowledgeStore
 import java.io.File
 
-/** Births and deaths are answered from NHCP markers by code, quoting the marker. */
+/** For births and deaths, code picks the NHCP marker that records them; the model answers from it. */
 class PeopleTest {
     private val records = File("src/main/assets/kb").listFiles()!!.filter { it.name.endsWith(".json") }
         .flatMap { KbRecord.parseArray(it.readText()) }
 
-    private fun ask(q: String) = People.answer(q, records)?.text?.substringBefore("\n\n")
+    /** The marker picked: "Jose Rizal (1861–1896) | <marker text>". */
+    private fun ask(q: String) = People.record(q, records)?.let { "${it.metadata["person"]} (${it.metadata["lifeYears"]}) | ${it.content}" }
 
     @Test
     fun rizalsBirthInFilipinoAndEnglish() {
@@ -57,5 +58,18 @@ class PeopleTest {
         }
         o.clear()
         assertEquals(Reply.Kind.RECORD, o.reply("Kailan ipinanganak si Rizal?").kind)
+    }
+
+    @Test
+    fun someoneWithNoMarkerGetsNoRecordNotAHouse() = runBlocking {
+        val o = Orchestrator(KnowledgeStore(records), llm = { null })
+        // Search alone found the "Dela Fuente-Villaroman Ancestral House" marker on "dela".
+        assertEquals(Reply.Kind.SYSTEM, o.reply("Kailan ipinanganak si Juan Dela Cruz?").kind)
+        o.clear() // a marker that names the person still shows; so do non-history birth and death questions
+        assertTrue(o.reply("Kailan ipinanganak si Mabini?").sources.first().title.contains("Mabini"))
+        o.clear()
+        assertTrue(o.reply("Anong taon ipinanganak si Lapu-Lapu?").sources.first().title.contains("Lapulapu"))
+        o.clear()
+        assertTrue(o.reply("Paano kumuha ng birth certificate?").sources.first().category != "history")
     }
 }
