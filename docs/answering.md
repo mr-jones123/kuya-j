@@ -32,6 +32,7 @@ flowchart TD
 | Greeting / thanks | "Kumusta", "salamat po" | Fixed greeting or goodbye |
 | Identity | "Sino ka?" | Says who Kuya J is and that no agency runs it |
 | Clock | "Anong oras na?" | Reads the phone's clock; Kuya J has none of its own |
+| Holiday dates | "Kailan ang Araw ng Kalayaan?", "Pasko", "when is Undas 2027" | Answered from the holiday record by code (`chat/Holidays.kt`): the year asked, or the next one coming, as a Filipino date line plus the record and its source. No model, no search ranking; instant. Holiday names come from the record titles, in English and Filipino ("Independence Day (Araw ng Kalayaan)"). A question that names a holiday but asks something else ("christmas bonus requirements") goes on to search. |
 | Doubt | "Are you sure?", "Talaga?" | Shows the last answer's record again, word for word; the model is not asked again, so the answer can't change under pressure |
 
 ## 2. Finding records

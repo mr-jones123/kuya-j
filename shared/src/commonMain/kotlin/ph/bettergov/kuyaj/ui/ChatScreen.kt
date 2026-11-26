@@ -338,7 +338,7 @@ private fun BotMessage(m: ChatMessage) {
 private fun AnswerCard(text: String, reply: Reply, record: KbRecord) {
     val c = LocalKuyaColors.current
     val style = categoryStyle(record.category)
-    val fact = keyFact(record)
+    val fact = keyFact(record)?.takeIf { reply.kind == Reply.Kind.RECORD || it.statedIn(text) }
     val uriHandler = LocalUriHandler.current
     val shape = RoundedCornerShape(20.dp)
     Column(Modifier.fillMaxWidth().clip(shape).background(c.surface).border(1.dp, c.border, shape)) {

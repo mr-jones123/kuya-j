@@ -39,6 +39,17 @@ fun keyFact(record: KbRecord): KeyFact? = when (record.category) {
 private fun firstSentence(text: String): String =
     text.removePrefix("What it costs:").trim().split(Regex("""(?<=[.!?])\s+(?=[A-Z])""")).first()
 
+/**
+ * Whether [text] states this value: its digits for a fee or number, its day and year for a date. The card only shows
+ * a headline the answer itself gives, so "no record" never sits under a big date.
+ */
+fun KeyFact.statedIn(text: String): Boolean {
+    return when (kind) {
+        KeyFact.Kind.MONEY, KeyFact.Kind.PHONE -> value.filter(Char::isDigit) in text.filter(Char::isDigit)
+        KeyFact.Kind.DATE -> value.split(" ").filter { p -> p.all(Char::isDigit) }.all { n -> Regex("""(^|\D)$n(\D|$)""").containsMatchIn(text) }
+    }
+}
+
 /** 2026-03-20 -> "20 March 2026", the order Philippine agencies write dates in. */
 private fun longDate(m: MatchResult): String {
     val (y, mo, d) = m.destructured

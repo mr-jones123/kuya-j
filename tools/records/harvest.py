@@ -317,13 +317,20 @@ HOLIDAY = re.compile(
 TYPES = {"regular": "regular holiday", "special-non-working": "special non-working day",
          "special-working": "special working day"}
 TYPES_FIL = {"regular": "regular holiday", "special-non-working": "special non-working holiday", "special-working": "special working"}
-# What people call holidays in Filipino, so "pasko" or "undas" finds them.
-HOLIDAY_FIL = {"New Year's Day": "Bagong Taon", "Christmas Day": "Pasko", "Christmas Eve": "Bisperas ng Pasko",
-               "Last Day of the Year": "Bisperas ng Bagong Taon", "Rizal Day": "Araw ni Rizal", "Bonifacio Day": "Araw ni Bonifacio",
-               "Labor Day": "Araw ng Paggawa", "Independence Day": "Araw ng Kalayaan", "National Heroes Day": "Araw ng mga Bayani",
-               "Maundy Thursday": "Huwebes Santo", "Good Friday": "Biyernes Santo", "Black Saturday": "Sabado de Gloria",
-               "All Saints' Day": "Undas Todos los Santos", "All Souls' Day": "Undas Araw ng mga Patay",
-               "Chinese New Year": "Bagong Taon ng Tsino", "Araw ng Kagitingan": "Day of Valor"}
+# What people call holidays in Filipino or for short, so "pasko", "undas" or "araw ng kalayaan" finds them. The app's
+# holiday lookup reads these names back from the record titles.
+HOLIDAY_ALIASES = {
+    "New Year's Day": ["Bagong Taon", "New Year"], "Christmas Day": ["Pasko", "Christmas"],
+    "Christmas Eve": ["Bisperas ng Pasko", "Noche Buena"], "Last Day of the Year": ["Bisperas ng Bagong Taon", "New Year's Eve"],
+    "Rizal Day": ["Araw ni Rizal"], "Bonifacio Day": ["Araw ni Bonifacio"], "Labor Day": ["Araw ng Paggawa"],
+    "Independence Day": ["Araw ng Kalayaan"], "National Heroes Day": ["Araw ng mga Bayani"],
+    "Maundy Thursday": ["Huwebes Santo"], "Good Friday": ["Biyernes Santo"], "Black Saturday": ["Sabado de Gloria"],
+    "All Saints' Day": ["Undas", "Todos los Santos"], "All Souls' Day": ["Araw ng mga Kaluluwa", "Araw ng mga Patay"],
+    "Chinese New Year": ["Bagong Taon ng mga Tsino"], "Araw ng Kagitingan": ["Day of Valor", "Bataan Day"],
+    "Ninoy Aquino Day": ["Araw ni Ninoy Aquino"], "EDSA People Power": ["EDSA anniversary"],
+    "Feast of the Immaculate Conception": ["Immaculate Conception"], "Eid'l Fitr": ["Eid al-Fitr", "Hari Raya Puasa"],
+    "Eid'l Adha": ["Eid al-Adha", "Hari Raya Haji"], "Iglesia ni Cristo": ["INC anniversary"],
+}
 MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
 
 
@@ -340,14 +347,15 @@ def holidays(commit: str) -> list[dict]:
             d = dt.date.fromisoformat(date)
             src = next((u for _, lab, u in sources if lab.startswith(basis.split(" (")[0])), sources[0][2] if sources else f"{SITE}/philippines/holidays")
             long_date = f"{d.strftime('%A')}, {d.day} {MONTHS[d.month - 1]} {year}"
-            body = f"{name} falls on {long_date} ({date}). It is a {TYPES[typ]}. Basis: {basis}."
+            aliases = next((v for k, v in HOLIDAY_ALIASES.items() if name.startswith(k)), [])
+            known_as = f" ({', '.join(aliases)})" if aliases else ""
+            body = f"{name}{known_as} falls on {long_date} ({date}). It is a {TYPES[typ]}. Basis: {basis}."
             if note:
                 body += f" {note}"
             month = MONTHS[d.month - 1]
-            fil = next((v for k, v in HOLIDAY_FIL.items() if name.startswith(k)), "")
-            kws = [name, fil, f"{name} {year}", f"kailan ang {name}", f"when is {name}", f"{name} date", f"kanus-a ang {name}",
+            kws = [name, *aliases, f"{name} {year}", f"kailan ang {name}", f"when is {name}", f"{name} date", f"kanus-a ang {name}",
                    f"holiday {month} {year}", f"{month} {year} holiday", f"{TYPES_FIL[typ]} {year}", f"walang pasok {month}"]
-            out.append(record(f"bg-holiday-{date}-{slug(name)[:40]}", "holidays", f"{name}: {date} ({TYPES[typ]})", body, kws,
+            out.append(record(f"bg-holiday-{date}-{slug(name)[:40]}", "holidays", f"{name}{known_as}: {date} ({TYPES[typ]})", body, kws,
                               source=src, publisher="Office of the President (proclamation)", as_of=verified, label="checked",
                               via=f"{SITE}/philippines/holidays", commit=commit, tags=["bettergov", "holiday", str(year)]))
         for typ in ("regular", "special-non-working"):

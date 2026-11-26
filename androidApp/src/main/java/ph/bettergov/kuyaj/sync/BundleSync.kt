@@ -13,7 +13,11 @@ import java.util.concurrent.TimeUnit
  * Order follows Airgap: partial file, checks, current -> previous, partial -> current,
  * rebuild index, then save version. A failure before the swap leaves the old bundle.
  */
-class BundleSync(context: Context, private val store: KnowledgeStore) {
+/**
+ * [builtInVersion] is the version of the records shipped in the app (assets/kb/VERSION). A downloaded bundle is only
+ * used if it's newer, so an app update with fresher built-in records isn't overridden by an older download.
+ */
+class BundleSync(context: Context, private val store: KnowledgeStore, private val builtInVersion: String? = null) {
     private val dir = File(context.filesDir, "kb").apply { mkdirs() }
     private val current = File(dir, "bundle-current.json")
     private val previous = File(dir, "bundle-previous.json")
@@ -31,7 +35,7 @@ class BundleSync(context: Context, private val store: KnowledgeStore) {
     /** Called once at startup: load the last installed bundle, or stay on built-in records. */
     fun loadInstalled() {
         val version = installedVersion ?: return
-        if (!current.exists()) return
+        if (!current.exists() || !newerThanBuiltIn(version)) return
         runCatching { store.replaceFromBundle(current.readText(), version) }
             .onFailure { store.revertToBuiltIn() }
     }
@@ -45,7 +49,9 @@ class BundleSync(context: Context, private val store: KnowledgeStore) {
                 throw BundleRejected("bundle_url_origin_invalid")
             }
             val installed = installedVersion
-            if (installed != null && (manifest.version == installed || BundleVerifier.isOlderVersion(manifest.version, installed))) {
+            if (!newerThanBuiltIn(manifest.version) ||
+                installed != null && (manifest.version == installed || BundleVerifier.isOlderVersion(manifest.version, installed))
+            ) {
                 markSynced()
                 return Result.UpToDate
             }
@@ -85,6 +91,9 @@ class BundleSync(context: Context, private val store: KnowledgeStore) {
         prefs.edit().putString("version", version).apply()
         markSynced()
     }
+
+    private fun newerThanBuiltIn(version: String) =
+        builtInVersion == null || (version != builtInVersion && !BundleVerifier.isOlderVersion(version, builtInVersion))
 
     private fun markSynced() = prefs.edit().putLong("lastSyncAt", System.currentTimeMillis()).apply()
 

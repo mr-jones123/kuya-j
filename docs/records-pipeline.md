@@ -86,7 +86,7 @@ uv run --with cryptography tools/records/publish.py \
     --records ../kuya-j-records/records --site ../kuya-j-records \
     --base-url https://mr-jones123.github.io/kuya-j-records
 cd ../kuya-j-records && git add -A && git commit -m "Records <date>" && git push
-cp records/*.json ../kuya-j-android/androidApp/src/main/assets/kb/   # keep the built-in copy in step
+cp records/*.json records/VERSION ../kuya-j-android/androidApp/src/main/assets/kb/   # keep the built-in copy in step
 ```
 
 `publish.py`:
@@ -98,6 +98,8 @@ cp records/*.json ../kuya-j-android/androidApp/src/main/assets/kb/   # keep the 
    version is the UTC time, so each release is newer than the last.
 4. Runs the app's own checks on what it wrote (length, SHA-256, key id, signature) before you push.
 5. Keeps the three newest bundles, so a phone halfway through a download can finish.
+6. Writes `records/VERSION`. Copied into the app, it tells the app which downloaded bundles are newer than its
+   built-in records.
 
 It prints the app setting `kuyaj.syncPublicKeys=<keyId>:<publicKey>`, which goes in `gradle.properties`.
 

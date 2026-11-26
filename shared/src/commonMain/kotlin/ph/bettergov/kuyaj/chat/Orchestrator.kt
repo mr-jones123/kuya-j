@@ -34,6 +34,8 @@ class Orchestrator(
     private val stalenessNote: () -> String? = { null },
     /** The phone's date and time as a sentence, e.g. "Thursday, 26 November 2026, 3:10 PM". */
     private val clock: () -> String = { "" },
+    /** The phone's date as YYYY-MM-DD, for "the next" holiday. Empty if unknown. */
+    private val today: () -> String = { "" },
     private val answerDeadlineMs: Long = 60_000,
 ) {
     // The model runs outside the caller's coroutine so a native call that never returns can't hold the chat.
@@ -70,6 +72,10 @@ class Orchestrator(
         if (CLOCK.matches(text)) {
             val clock = clock().ifEmpty { return system("I can't read this phone's clock.") }
             return system("It is $clock on this phone's clock. I have no clock of my own; each record shows the date it was checked.")
+        }
+        // Holiday dates are fixed facts: answered from the record by code, like a greeting.
+        if (photo == null) Holidays.answer(text, store.state.records, today())?.let {
+            return Reply(withStaleness(it.text), Reply.Kind.RECORD, listOf(it.record))
         }
         // A doubt check replays the record. The model is not asked again, so the answer cannot move.
         if (DOUBT.containsMatchIn(text)) {

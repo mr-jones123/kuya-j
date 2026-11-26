@@ -63,7 +63,9 @@ one the record contains:
 | holidays | A single date in the title, written as `20 March 2026` | A list of dates shows no value |
 | others | none | |
 
-`KeyFactTest` checks this against every built-in record, including that each value appears in its record.
+`KeyFactTest` checks this against every built-in record, including that each value appears in its record. On an
+AI answer, the value is only shown if the answer states it (its digits, or a date's day and year), so a "no record"
+answer never sits under a big date.
 
 Refusals show in a grey box; greetings and other system replies are plain text.
 

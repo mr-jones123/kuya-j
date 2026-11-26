@@ -89,6 +89,12 @@ any repository.
 Debug builds may also sync over plain HTTP from `10.0.2.2` (the emulator's host), for a local test server; release
 builds require HTTPS.
 
+## Built-in records come first when they're newer
+
+The app's built-in records carry their publish version in `assets/kb/VERSION`. A downloaded bundle is only used,
+and only downloaded, if it's newer than that. So an app update that ships fresher records isn't overridden by an
+older bundle the phone downloaded before.
+
 ## When it runs
 
 `SyncWorker` (WorkManager) runs every 6 hours on an unmetered network (Wi-Fi), and once at startup. *Update on next

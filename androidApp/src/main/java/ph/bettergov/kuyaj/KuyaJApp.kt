@@ -44,7 +44,7 @@ class AppContainer(private val context: Context) : KuyaServices {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     val store = KnowledgeStore(loadBuiltIn(context))
-    val bundleSync = BundleSync(context, store).apply { loadInstalled() }
+    val bundleSync = BundleSync(context, store, builtInVersion(context)).apply { loadInstalled() }
     val models = ModelManager(context)
     val engine = LiteRtLmEngine(context)
 
@@ -64,6 +64,7 @@ class AppContainer(private val context: Context) : KuyaServices {
         llm = { engine },
         stalenessNote = ::stalenessNote,
         clock = { ZonedDateTime.now().format(DateTimeFormatter.ofPattern("EEEE, d MMMM yyyy, h:mm a", Locale.ENGLISH)) },
+        today = { java.time.LocalDate.now().toString() },
     )
 
     init {
@@ -137,6 +138,10 @@ class AppContainer(private val context: Context) : KuyaServices {
             Freshness.NEVER -> "Note: I haven't downloaded updated records yet. These are the records built into the app."
         }
     }
+
+    /** The records' publish version, written by tools/records/publish.py next to them. */
+    private fun builtInVersion(context: Context): String? =
+        runCatching { context.assets.open("kb/VERSION").bufferedReader().use { it.readText().trim() } }.getOrNull()?.ifBlank { null }
 
     private fun loadBuiltIn(context: Context): List<KbRecord> =
         context.assets.list("kb").orEmpty().filter { it.endsWith(".json") }.sorted().flatMap { name ->

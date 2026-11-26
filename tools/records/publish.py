@@ -4,6 +4,8 @@
         --records ../kuya-j-records/records --site ../kuya-j-records \
         --base-url https://mr-jones123.github.io/kuya-j-records
 
+Also writes <records>/VERSION, which travels into the app with the records (androidApp/src/main/assets/kb/VERSION).
+
 Writes, under --site:
     api/v1/sync/kb              the signed manifest (what the app asks for first)
     kb/bundle-<version>.json    the exact bytes the manifest signs (the three newest are kept)
@@ -122,6 +124,8 @@ def main() -> None:
     (site / ".nojekyll").touch()
     for old in sorted((site / "kb").glob("bundle-*.json"))[:-KEEP_BUNDLES]:
         old.unlink()
+    # Copied into the app with the records: the app uses a downloaded bundle only if it's newer than this.
+    (Path(a.records) / "VERSION").write_text(stamp + "\n")
 
     print(f"published version {stamp}: {len(bundle):,} bytes, sha256 {m['sha256'][:16]}…, {url}")
     print(f"app setting: kuyaj.syncPublicKeys={m['keyId']}:{pub}")
