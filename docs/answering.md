@@ -32,6 +32,8 @@ flowchart TD
 | Greeting / thanks | "Kumusta", "salamat po" | Fixed greeting or goodbye |
 | Identity | "Sino ka?" | Says who Kuya J is and that no agency runs it |
 | Clock | "Anong oras na?" | Reads the phone's clock; Kuya J has none of its own |
+| Personal small talk | "Kumusta ang araw mo?", "Mahal mo ba ako?", "Ilang taon ka na?" | A fixed friendly reply, before search: everyday words like "araw" or "mahal" would otherwise match holiday names or marker text. |
+| Births and deaths | "Kailan ipinanganak si Rizal?", "When did Andres Bonifacio die?" | Answered from the person's NHCP historical marker by code (`chat/People.kt`), quoting the marker's own sentence ("ISINILANG SA CALAMBA, LAGUNA, 19 HUNYO 1861"), then the full marker and its source. A surname alone goes to the person with the most markers ("si Rizal" is José, not Paciano); a first name in the question must match ("Juan Dela Cruz" doesn't get Emilio Aguilar Cruz). No birth or death sentence on the marker: normal search. |
 | Holiday dates | "Kailan ang Araw ng Kalayaan?", "Pasko", "when is Undas 2027" | Answered from the holiday record by code (`chat/Holidays.kt`): the year asked, or the next one coming, as a Filipino date line plus the record and its source. No model, no search ranking; instant. Holiday names come from the record titles, in English and Filipino ("Independence Day (Araw ng Kalayaan)"). A question that names a holiday but asks something else ("christmas bonus requirements") goes on to search. |
 | Doubt | "Are you sure?", "Talaga?" | Shows the last answer's record again, word for word; the model is not asked again, so the answer can't change under pressure |
 

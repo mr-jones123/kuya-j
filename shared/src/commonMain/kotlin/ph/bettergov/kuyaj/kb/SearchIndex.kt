@@ -88,7 +88,11 @@ class SearchIndex(
         private val STOPWORDS = setOf(
             "the", "is", "are", "was", "a", "an", "of", "to", "in", "on", "for", "and", "or", "at", "by", "with", "it",
             "what", "who", "how", "when", "where", "which", "do", "does", "did", "i", "you", "my", "your", "me", "can",
+            "about", "tell", "please", "give", "want", "know", "there", "this", "that",
             "ang", "ng", "sa", "mga", "na", "ba", "po", "ko", "mo", "ka", "si", "ni", "kay", "ay", "yung", "nga", "ug",
+            // Question words: they say what kind of answer is wanted (see intents()), not the topic. "Pila" is also a town.
+            "pila", "tagpila", "magkano", "mano", "tagpira", "magkanu", "pigara", "kailan", "kelan", "sino", "ano", "unsa",
+            "asa", "saan", "paano", "unsaon", "kanus", "anus", "kaano", "ania", "anong",
         )
 
         private const val INTENT_BOOST = 1.5
@@ -99,20 +103,29 @@ class SearchIndex(
                 "presyo", "price", "cost", "much", "singil", "gastos"),
             "hotlines" to setOf("hotline", "helpline", "number", "numero", "contact", "tawag", "tawagan", "call", "phone", "telepono"),
             "requirements" to setOf("requirements", "requirement", "kailangan", "kinahanglan", "kasapulan", "documents", "dokumento"),
+            "history" to setOf("born", "birth", "birthday", "ipinanganak", "isinilang", "kapanganakan", "kaarawan", "natawo",
+                "died", "death", "namatay", "kamatayan", "pumanaw", "binaril", "history", "kasaysayan", "founded", "itinatag"),
         )
 
         fun intents(query: String): Set<String> {
-            val words = tokenize(query).toSet()
+            val words = query.lowercase().split(SPLIT).toSet() // raw words: question words like "magkano" count here
             return INTENTS.filterValues { it.any(words::contains) }.keys
         }
 
+        // Accents fold to plain letters: markers write "JOSÉ", people type "Jose".
+        private val FOLD = mapOf('á' to 'a', 'à' to 'a', 'â' to 'a', 'ä' to 'a', 'é' to 'e', 'è' to 'e', 'ê' to 'e', 'ë' to 'e',
+            'í' to 'i', 'ì' to 'i', 'î' to 'i', 'ï' to 'i', 'ó' to 'o', 'ò' to 'o', 'ô' to 'o', 'ö' to 'o', 'ú' to 'u',
+            'ù' to 'u', 'û' to 'u', 'ü' to 'u', 'ñ' to 'n')
+
         fun tokenize(text: String): List<String> =
-            text.lowercase().split(SPLIT).filter { it.length >= 2 && it !in STOPWORDS }
+            text.lowercase().map { FOLD[it] ?: it }.joinToString("").split(SPLIT).filter { it.length >= 2 && it !in STOPWORDS }
 
         private fun textOf(r: KbRecord, field: Field) = when (field) {
             Field.TITLE -> r.title
             Field.KEYWORDS -> r.keywords.joinToString(" ")
-            Field.CONTENT -> r.content
+            // Historical markers are searched by title and keywords only: their long Tagalog and Cebuano texts are full of
+            // everyday words ("tuig", "araw") that would otherwise catch unrelated questions. The answer still quotes the text.
+            Field.CONTENT -> if (r.category == "history") "" else r.content
         }
 
         /** Levenshtein distance, stopping early once it passes [max]. */

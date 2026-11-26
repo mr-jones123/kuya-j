@@ -62,6 +62,27 @@ raises its BM25 score and buries more specific records.
 The script fails if any record is over 1,200 characters, lacks a source line, or repeats an id. Its own checks
 (name casing, Markdown cleanup, acronyms) run first.
 
+### Historical markers (NHCP)
+
+```bash
+python3 tools/records/harvest_nhcp.py --out ../kuya-j-records/records             # fetch what's new, then write
+python3 tools/records/harvest_nhcp.py --out ../kuya-j-records/records --offline   # rewrite from the cache only
+```
+
+Reads the National Historical Commission's registry (philhistoricsites.nhcp.gov.ph): the list from its WordPress API,
+then each marker page for its location, type, marker date, installer and **marker text**, copied word for word.
+The site takes about 5 seconds per page, so pages are fetched three at a time, people first, and cached in
+`tools/records/.cache/nhcp/`; a full first run takes about an hour, later runs only fetch new markers.
+
+- One record per marker with text (1,448 of 1,561), split at sentence ends when long; identical texts on several
+  markers (Rizal's stands worldwide) are kept once.
+- Person markers ("Jose Rizal (1861–1896)") get `metadata.person`, `lifeYears` and `personMarkers` for the app's
+  births-and-deaths lookup.
+- Birth and death search words are added only to markers that mention a birth or a death.
+- Marker texts are government works (no copyright, RA 8293 section 176). Errors in the registry carry through: the
+  registry lists Apolinario Mabini as 1854–1903 (he was born in 1864). Report such errors to the NHCP and fix the
+  record rather than editing the text.
+
 ## 2. Review
 
 `git diff` in `kuya-j-records/records` shows exactly what will change on phones. Check in particular:

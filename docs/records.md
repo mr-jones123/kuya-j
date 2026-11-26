@@ -55,7 +55,7 @@ file fails loudly instead of answering wrongly.
 
 ## The built-in records
 
-**462 records** ship inside the app, so everything works offline from the moment it's installed:
+**2,114 records** ship inside the app, so everything works offline from the moment it's installed:
 
 | Files | From | Records |
 |---|---|---|
@@ -64,6 +64,8 @@ file fails loudly instead of answering wrongly.
 | `bettergov-holidays.json` | Every holiday for 2025-2027 from the proclamations (with Filipino names), plus yearly lists | 69 |
 | `bettergov-visas.json` | Visa types and their requirements | 23 |
 | `bettergov-hotlines.json` | Emergency and agency hotlines | 19 |
+| `bettergov-history.json` | BetterGov.ph's Philippine history timeline, early peoples to BARMM | 17 |
+| `nhcp-markers.json` | The NHCP registry of historical markers: marker text word for word, with location, year and installer; person markers tagged with the person and life years | 1,635 |
 | `fees.json`, `hotlines.json`, `officials.json`, `services.json` | Airgap's government-services example, below | 11 |
 | `VERSION` | The records' publish version ([why](sync.md#built-in-records-come-first-when-theyre-newer)) | |
 

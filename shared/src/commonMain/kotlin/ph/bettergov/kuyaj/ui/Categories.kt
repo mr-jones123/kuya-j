@@ -27,6 +27,7 @@ fun categoryStyle(category: String?): CategoryStyle {
         "holidays" -> CategoryStyle("Holiday", Res.drawable.ic_calendar, pick(0xFFA85F00, 0xFFF4B961))
         "officials" -> CategoryStyle("Office holder", Res.drawable.ic_landmark, pick(0xFF2F43B5, 0xFF95A3FF))
         "services" -> CategoryStyle("How to", Res.drawable.ic_file_text, c.primaryText)
+        "history" -> CategoryStyle("History", Res.drawable.ic_landmark, pick(0xFF8A4B1F, 0xFFE0A47A))
         else -> CategoryStyle("Record", Res.drawable.ic_file_text, c.primaryText)
     }
 }

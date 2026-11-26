@@ -73,8 +73,14 @@ class Orchestrator(
             val clock = clock().ifEmpty { return system("I can't read this phone's clock.") }
             return system("It is $clock on this phone's clock. I have no clock of my own; each record shows the date it was checked.")
         }
-        // Holiday dates are fixed facts: answered from the record by code, like a greeting.
+        // Personal questions to Kuya J ("kumusta ang araw mo?", "mahal mo ba ako?") before search: their everyday words
+        // ("araw", "mahal") would otherwise match holiday names or marker text.
+        if (PERSONAL.containsMatchIn(plain)) return system(SMALL_TALK_REPLY)
+        // Holiday dates and when someone was born or died are fixed facts: answered from the record by code.
         if (photo == null) Holidays.answer(text, store.state.records, today())?.let {
+            return Reply(withStaleness(it.text), Reply.Kind.RECORD, listOf(it.record))
+        }
+        if (photo == null) People.answer(text, store.state.records)?.let {
             return Reply(withStaleness(it.text), Reply.Kind.RECORD, listOf(it.record))
         }
         // A doubt check replays the record. The model is not asked again, so the answer cannot move.
@@ -198,8 +204,9 @@ class Orchestrator(
 
     /**
      * Prefix and typo matching find some record for almost any text ("pila" -> "pilipinas"),
-     * so a weak top match counts as no match. One word ("pasko") needs 10, two ("sss hotline") 15; longer questions need
-     * 25, or 30 if the top record shares only one of their words ("won the game last night" vs "Last Day of the Year").
+     * so a weak top match counts as no match. One word ("pasko") needs 10 and an exact or prefix match, two ("sss hotline")
+     * 15; longer questions need
+     * 25, or 34 if the top record shares only one of their words ("won the game last night" vs "Last Day of the Year").
      * Words like "the" or "ng" don't count (SearchIndex.STOPWORDS). Measured on the 462 records shipped with the app
      * (11 from Airgap + 451 from BetterGov.ph): 227 of 228 real questions pass; off-topic questions that still match share a
      * real word with a record ("rice" and PhilRice, "weather" and PAGASA).
@@ -209,9 +216,9 @@ class Orchestrator(
         val hits = store.search(query, TOP_K)
         val top = hits.firstOrNull() ?: return emptyList()
         val ok = when (SearchIndex.tokenize(query).size) {
-            0, 1 -> top.score >= 10.0
+            0, 1 -> top.score >= 10.0 && top.words >= 1 // a typo match alone ("sud" ~ "Bud Dajo") doesn't count
             2 -> top.score >= 15.0
-            else -> top.score >= 25.0 && (top.words >= 2 || top.score >= 30.0)
+            else -> top.score >= 25.0 && (top.words >= 2 || top.score >= 34.0)
         }
         return if (ok) hits else emptyList()
     }
@@ -285,6 +292,11 @@ class Orchestrator(
         private val SMALL_TALK = Regex(
             "\\b(nagkaon|kaon|mikaon|kumain|kain|nangan|mangan|sud-an|ulam|tuig|edad|idad|taon|upod|kauban|kasama|" +
                 "nagkadto|nagadto|nag-adto|pumunta|napunta|asawa|jowa|uyab|crush|girlfriend|boyfriend|how old|have you eaten)\\b",
+        )
+        private val PERSONAL = Regex(
+            "\\b(kumusta ang araw mo|kamusta ang araw mo|kumusta ka|kamusta ka|how are you|mahal mo ba ako|do you love me|" +
+                "nakakain ka|kumain ka na|ilang taon ka|how old are you|saan ka nakatira|asa ka nagpuyo|may jowa ka|crush mo|" +
+                "paborito mong|your favorite|anong pangalan mo|what is your name)\\b",
         )
         private val GREETINGS = setOf("hi", "hello", "hey", "good morning", "good afternoon", "good evening", "kumusta", "kamusta", "musta", "magandang umaga", "magandang hapon", "magandang gabi")
         private val FAREWELLS = setOf("thanks", "thank you", "salamat", "salamat po", "bye", "goodbye", "paalam")

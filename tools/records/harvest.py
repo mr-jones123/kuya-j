@@ -42,11 +42,11 @@ def latest_commit() -> str:
     return json.loads(fetch(f"https://api.github.com/repos/{REPO}/commits/main"))["sha"]
 
 
-def raw(commit: str, path: str) -> str:
-    f = CACHE / commit / path
+def raw(commit: str, path: str, root: str = "src/data") -> str:
+    f = CACHE / commit / (path if root == "src/data" else f"{root}/{path}".replace("/", "_"))
     if not f.exists():
         f.parent.mkdir(parents=True, exist_ok=True)
-        f.write_bytes(fetch(f"https://raw.githubusercontent.com/{REPO}/{commit}/src/data/{path}"))
+        f.write_bytes(fetch(f"https://raw.githubusercontent.com/{REPO}/{commit}/{root}/{path}"))
     return f.read_text()
 
 
@@ -385,9 +385,17 @@ DEPT_ACR = {"BUDGET AND MANAGEMENT": "DBM", "AGRICULTURE": "DA", "AGRARIAN REFOR
             "ECONOMY, PLANNING, AND DEVELOPMENT": "DEPDev"}
 
 
+# Filipino names for roles, so "Sino ang Bise Presidente?" or "sino ang kalihim ng DOH" finds the record.
+ROLE_FIL = {"vice president": ["Bise Presidente", "Pangalawang Pangulo"], "president": ["Pangulo", "Presidente"],
+            "secretary": ["Kalihim"], "chief justice": ["Punong Mahistrado"], "associate justice": ["Mahistrado"],
+            "chairperson": ["Tagapangulo"], "chairman": ["Tagapangulo"], "director": ["Direktor"],
+            "administrator": ["Administrador"], "commissioner": ["Komisyoner"], "governor": ["Gobernador"]}
+
+
 def head_keywords(role: str, name: str, acr: str | None) -> list[str]:
     r = role.lower()
-    kws = [f"who is the {r} of {name}", f"sino ang {r} ng {name}", f"{name} {r}", f"{name} head", f"{name} contact", name]
+    fil = next((v for k, v in ROLE_FIL.items() if k in r), [])
+    kws = [f"who is the {r} of {name}", f"sino ang {r} ng {name}", f"{name} {r}", f"{name} head", f"{name} contact", name, *fil]
     if acr:
         kws += [f"{acr} {r}", f"sino ang {acr} {r}", f"who is the {acr} {r}", f"{acr} head", f"{acr} address", f"{acr} contact number", acr]
     return kws
@@ -483,10 +491,10 @@ def directory(commit: str) -> list[dict]:
         lines = "\n".join(f"- {role}: {who}" for role, who in heads[:16])
         body = f"As listed by BetterGov.ph on {listed}, the leaders of the {chamber}:\n{lines}\n" + contacts(c)
         if senate:
-            kws = ["Senate President", "sino ang Senate President", "who is the Senate President", "Senate President Pro Tempore",
+            kws = ["Senate President", "sino ang Senate President", "who is the Senate President", "Senate President Pro Tempore", "Pangulo ng Senado",
                    "Senate Majority Leader", "Senate Minority Leader", "Senate leaders", "pangulo ng Senado", "Senado"]
         else:
-            kws = ["Speaker of the House", "House Speaker", "sino ang Speaker", "who is the Speaker", "Deputy Speaker",
+            kws = ["Speaker of the House", "House Speaker", "sino ang Speaker", "who is the Speaker", "Deputy Speaker", "Ispiker", "Kapulungan",
                    "House Majority Leader", "House Minority Leader", "House leaders", "Kamara", "Congress"]
         out.append(record(f"bg-congress-{slug(short)}", "officials", f"{chamber}: leaders", body, kws,
                           source=f"{SITE}/government", publisher="BetterGov.ph", as_of=listed, label="listed",
@@ -511,7 +519,7 @@ def directory(commit: str) -> list[dict]:
                 f"{', appointed ' + head['date_of_appointment'] if head.get('date_of_appointment') else ''}. "
                 + (f"Other members: {others}. " if others else "") + contacts(j))
         out.append(record(f"bg-court-{slug(j['name'])}", "officials", f"{j['name']}: {head['role']}", body[:MAX_CHARS],
-                          head_keywords(head["role"], j["name"], None) + ["Chief Justice", "justices", "Supreme Court"],
+                          head_keywords(head["role"], j["name"], None) + ["Chief Justice", "justices", "Supreme Court", "Punong Mahistrado", "Korte Suprema"],
                           source=f"{SITE}/government", publisher="BetterGov.ph", as_of=listed, label="listed",
                           via=via, commit=commit, tags=["bettergov", "directory", "judicial"]))
 
@@ -532,6 +540,32 @@ def directory(commit: str) -> list[dict]:
         out.append(record(f"bg-gov-{slug(name)[:60]}", "officials", f"{full}: {h.get('role', 'head')}", body[:MAX_CHARS],
                           head_keywords(h.get("role", "head"), name, acr), source=f"{SITE}/government", publisher="BetterGov.ph",
                           as_of=listed, label="listed", agency=acr, via=via, commit=commit, tags=["bettergov", "directory", "corporation"]))
+    return out
+
+
+# ---- history ---------------------------------------------------------------------------------------------------
+
+
+def history(commit: str) -> list[dict]:
+    """BetterGov.ph's Philippine history timeline (bettergov.ph/philippines/history), in English with the Filipino
+    version, each entry with the sources BetterGov cites."""
+    en = json.loads(raw(commit, "en/about-philippines.json", root="public/locales"))["history"]["entries"]
+    fil = {e["id"]: e for e in json.loads(raw(commit, "fil/about-philippines.json", root="public/locales")).get("history", {}).get("entries", [])}
+    ts = raw(commit, "heritage.ts")
+    block = ts[ts.index("export const historySources"):]
+    sources = {k: u for k, u in re.findall(r"(\w+): \{\s*title: '[^']*',\s*url: '([^']+)'", block)}
+    listed = file_date(commit, "heritage.ts")
+    out = []
+    for e in en:
+        f = fil.get(e["id"], {})
+        body = f"{e['yr']}: {e['title']}. {e['body']}"
+        if f.get("body") and f["body"] != e["body"]:
+            body += f"\nSa Filipino: {f['yr']}: {f['title']}. {f['body']}"
+        src = next((sources[s] for s in e.get("sources", []) if s in sources), f"{SITE}/philippines/history")
+        kws = unique_words([e["title"], f.get("title", ""), e["yr"], "history", "kasaysayan", "Philippine history"])
+        out.append(record(f"bg-history-{e['id']}", "history", f"{e['title']} ({e['yr']})", body[:MAX_CHARS - 150], kws,
+                          source=src, publisher="BetterGov.ph", as_of=listed, label="listed",
+                          via=f"{SITE}/philippines/history", commit=commit, tags=["bettergov", "history"]))
     return out
 
 
@@ -585,7 +619,7 @@ def main() -> None:
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
     sources = {"bettergov-guides": guides, "bettergov-hotlines": hotlines, "bettergov-holidays": holidays,
-               "bettergov-directory": directory, "bettergov-visas": visas}
+               "bettergov-directory": directory, "bettergov-visas": visas, "bettergov-history": history}
     total, problems, summary = 0, [], []
     for name, fn in sources.items():
         recs = fn(commit)

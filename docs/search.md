@@ -36,14 +36,14 @@ drops weak results (`Orchestrator.search()`):
 
 | Question length (after dropping filler words) | Top score needed |
 |---|---|
-| One word ("pasko", "amilyar") | 10 |
+| One word ("pasko", "amilyar") | 10, and an exact or prefix match (a typo match alone doesn't count) |
 | Two words ("sss hotline") | 15 |
-| Three or more | 25, or 30 if the top record shares only one of the question's words (exactly or as a prefix) |
+| Three or more | 25, or 34 if the top record shares only one of the question's words (exactly or as a prefix) |
 
 The last rule stops a single shared word from carrying a long question: "who won the basketball game last night?"
 only shares "last" with "Last Day of the Year", so it finds nothing.
 
-Measured on the 462 built-in records: **227 of 228 real questions** (the capri questions, v3's keywords for them, and
+Measured on 462 records, before the history records were added: **227 of 228 real questions** (the capri questions, v3's keywords for them, and
 common one-word topics) pass. Off-topic questions that still match share a real word with a record: "rice" finds the
 Philippine Rice Research Institute, "weather" finds PAGASA. BM25 scores shift as the record set grows, so these are
 re-measured when it changes a lot ([records pipeline](records-pipeline.md#re-measuring-search)).
@@ -62,17 +62,26 @@ multiplied by 1.5 (`SearchIndex.intents()`):
 So "magkano ang NBI clearance" finds the fee, not the NBI hotline or the steps, even though all three mention
 "NBI clearance".
 
+### Historical markers are searched by title and keywords
+
+The 1,635 NHCP marker texts are long and full of everyday Tagalog and Cebuano words ("araw", "tuig", "bayan"), which
+caught unrelated questions. Markers are found by their title (a person's name, a place, an event) and keywords; the
+answer still quotes the full text. Birth and death words in a question favour history records.
+
 ### Filler words
 
 Words that say nothing about the topic are dropped before searching, in English and Filipino: *the, is, what, who,
-how, ang, ng, sa, mga, ba, po, ko, mo...* (`SearchIndex.STOPWORDS`), as are one-letter words. Without this, "the"
+how, about, ang, ng, sa, mga, ba, po, ko, mo...* (`SearchIndex.STOPWORDS`), as are one-letter words. Question words
+(*magkano, tagpila, pila, kailan, sino, ano, unsa, paano...*) are dropped too, since they say what kind of answer is
+wanted, not the topic ("pila" is also a town in Laguna); they still set the intent above. Accents fold to plain
+letters, so "Jose" finds "JOSÉ". Without this, "the"
 or "ng" added score to unrelated records.
 
 ## In tool mode
 
 When the [v3 model](model-v3.md) searches, it writes English keywords ("NBI clearance fee") and the app runs this
 same search on them. If the keywords find nothing, the app searches the original question too. With v3's keywords,
-a record containing the answer is in the top 3 for **98 of 99** answerable test questions on the 462 records.
+a record containing the answer is in the top 3 for **98 of 99** answerable test questions on all 2,114 records.
 
 ## Limits
 
