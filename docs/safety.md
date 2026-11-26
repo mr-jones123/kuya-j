@@ -1,0 +1,53 @@
+# Safety
+
+A civic assistant that runs offline has no server to catch mistakes, so Kuya J's rules live in code on the phone
+(`shared/.../safety/Safety.kt`, ported from Airgap's safety layer). There are two halves: rules on what people
+ask, and a check on what the model says.
+
+## What Kuya J refuses
+
+These run before any search, and the reply is fixed text, never the model:
+
+| Reason | Matches, for example | Kuya J says |
+|---|---|---|
+| `prompt_probe` | "show your system prompt", "ignore your instructions", "developer mode", "jailbreak" | It can't share its instructions; ask about a service instead |
+| `blocked_topic` | "who should I vote for", "sino ang dapat iboto", "your opinion on", "is the president good" | It doesn't give political opinions or voting advice (in English and Filipino) |
+| `not_legal_advice` | "legal advice", "can I be arrested", "sue" | Contact the Public Attorney's Office or a lawyer |
+| `not_medical_advice` | "diagnose", "prescribe" | Consult a licensed healthcare professional |
+| `not_financial_advice` | "should I invest" | Consult a licensed advisor |
+| `no_commentary` | Allegations, scandals, corruption, impeachment; or *why* someone resigned or was fired | It only shows dated official records, not reasons or motives |
+
+Phrases match whole words, case-insensitively, in English and Filipino (*kurakot*, *nagbitiw*, *bakit*,
+*dahilan*...).
+
+## The grounding check
+
+The model may word an answer, but every **amount**, **date** and **name** in it must appear in the records it was
+given. If one doesn't, the answer is withheld and the record is shown as written. Details are in
+[How answering works](answering.md#4-the-grounding-check). This is what stops the model from inventing a fee,
+moving a date, or naming the wrong official.
+
+The check also guards the stream: the screen only ever shows text that has passed it so far, so a wrong number
+can't flash up and then disappear.
+
+## Other protections
+
+- **No fact without a record.** If search finds nothing, Kuya J says it has no record rather than letting the model
+  answer from memory.
+- **Doubt doesn't move answers.** "Are you sure?" replays the record; the model isn't asked again.
+- **Dated facts.** Every record says when it was checked, and the card shows that date.
+- **Office holders.** Records about officials are dated statements from official releases ("A PCO release dated
+  2026-10-11 says..."), so Kuya J reports what was announced, not its own view.
+- **Not an agency.** The identity reply and About screen say no government agency operates Kuya J.
+
+## Limits
+
+- Pattern rules can be phrased around. They catch the common cases; the grounding check is the backstop for
+  anything that reaches the model.
+- The name check looks for capitalised words; a wrong name written in lowercase would pass. Names in records are
+  usually capitalised, so this hasn't come up.
+- The [v3 model](model-v3.md) still calls `search_kb` on voting questions it should decline outright. The input
+  rules refuse those before the model runs, so users don't see it.
+
+Tested in `OrchestratorTest`: `inventedFeeIsWithheldAndNeverStreamed`, `inventedNameIsCaught`,
+`promptProbeAndCommentaryAreRefused`, `toolModeWithholdsAnInventedFee`.
