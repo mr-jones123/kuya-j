@@ -13,7 +13,7 @@ import ph.bettergov.kuyaj.safety.Safety
 import java.io.File
 
 class OrchestratorTest {
-    // The real seed records shipped in the app.
+    // The real records shipped in the app (BetterGov.ph's NBI guide: "₱160 total. This is ₱130 for the clearance plus ₱30...").
     private val records = File("src/main/assets/kb").listFiles()!!.filter { it.name.endsWith(".json") }
         .flatMap { KbRecord.parseArray(it.readText()) }
     private val store = KnowledgeStore(records)
@@ -43,7 +43,7 @@ class OrchestratorTest {
         val streamed = StringBuilder()
         val reply = Orchestrator(store, llm = { model }).reply("Tagpila ang NBI clearance?") { streamed.append(it) }
         assertEquals(Reply.Kind.MODEL, reply.kind)
-        assertEquals("fee-002", reply.sources.first().id)
+        assertEquals("bg-guide-nbi-what-it-costs", reply.sources.first().id)
         assertTrue(model.results.startsWith("[1] "))
         assertTrue(streamed.contains("PHP 130"))
     }
@@ -52,7 +52,7 @@ class OrchestratorTest {
         val model = SearchingModel("zzz qqq", "Ang bayad sa NBI clearance kay PHP 130.")
         val reply = Orchestrator(store, llm = { model }).reply("Magkano ang NBI clearance?")
         assertEquals(Reply.Kind.MODEL, reply.kind)
-        assertEquals("fee-002", reply.sources.first().id)
+        assertEquals("bg-guide-nbi-what-it-costs", reply.sources.first().id)
     }
 
     @Test fun toolModeWithholdsAnInventedFee() = runBlocking {
@@ -79,23 +79,23 @@ class OrchestratorTest {
 
     @Test fun searchFindsTaglishQuestion() {
         val top = store.search("magkano ang NBI clearance").first().record
-        assertEquals("fee-002", top.id)
+        assertEquals("bg-guide-nbi-what-it-costs", top.id)
         // A typo still finds it.
-        assertEquals("fee-002", store.search("NBI clearnce fee").first().record.id)
+        assertEquals("bg-guide-nbi-what-it-costs", store.search("NBI clearnce fee").first().record.id)
     }
 
     @Test fun recordAnswersWithoutModel() = runBlocking {
         val reply = Orchestrator(store, llm = { null }).reply("Magkano ang NBI clearance?")
         assertEquals(Reply.Kind.RECORD, reply.kind)
-        assertTrue(reply.text.contains("PHP 130"))
+        assertTrue(reply.text.contains("₱160"))
     }
 
     @Test fun groundedModelAnswerIsShown() = runBlocking {
-        val model = FakeModel("Ang NBI clearance fee ay PHP 130, plus an e-payment service charge. Source: https://nbi.gov.ph/how-to-apply-nbi-clearance/ (checked 2026-10-07).")
+        val model = FakeModel("Ang NBI clearance ay ₱160 lahat: ₱130 para sa clearance at ₱30 na e-payment fee.")
         val streamed = StringBuilder()
         val reply = Orchestrator(store, llm = { model }).reply("Magkano ang NBI clearance?") { streamed.append(it) }
         assertEquals(Reply.Kind.MODEL, reply.kind)
-        assertTrue(streamed.contains("PHP 130"))
+        assertTrue(streamed.contains("₱160"))
     }
 
     @Test fun inventedFeeIsWithheldAndNeverStreamed() = runBlocking {
@@ -103,7 +103,7 @@ class OrchestratorTest {
         val streamed = StringBuilder()
         val reply = Orchestrator(store, llm = { model }).reply("Magkano ang NBI clearance?") { streamed.append(it) }
         assertEquals(Reply.Kind.RECORD, reply.kind)
-        assertTrue(reply.text.contains("PHP 130"))
+        assertTrue(reply.text.contains("₱160"))
         assertTrue(reply.note!!.contains("PHP 500"))
         assertTrue("streamed: $streamed", !streamed.contains("500"))
     }
@@ -118,7 +118,7 @@ class OrchestratorTest {
     @Test fun inventedNameIsCaught() {
         val sources = Safety.sources(store.search("NBI clearance fee").map { it.record }, "NBI clearance fee")
         assertTrue(Safety.ungrounded("The fee was set by Secretary Juan Dela Cruz.", sources).isNotEmpty())
-        assertTrue(Safety.ungrounded("The basic clearance fee is PHP 130.", sources).isEmpty())
+        assertTrue(Safety.ungrounded("The clearance fee is ₱130 plus ₱30, ₱160 in total.", sources).isEmpty())
     }
 
     @Test fun promptProbeAndCommentaryAreRefused() = runBlocking {
@@ -137,7 +137,7 @@ class OrchestratorTest {
         val o = Orchestrator(store, llm = { null })
         o.reply("Magkano ang NBI clearance?")
         val again = o.reply("sigurado ka?")
-        assertTrue(again.text.contains("PHP 130"))
+        assertTrue(again.text.contains("₱160"))
     }
 
     @Test fun regionalSmallTalkGetsFixedReply() = runBlocking {
@@ -179,7 +179,7 @@ class OrchestratorTest {
         val reply = Orchestrator(store, llm = { hung }, answerDeadlineMs = 200).reply("Magkano ang NBI clearance?") { streamed.append(it) }
         assertTrue("took ${System.currentTimeMillis() - t0}ms", System.currentTimeMillis() - t0 < 1_000)
         assertEquals(Reply.Kind.RECORD, reply.kind)
-        assertTrue(reply.text.contains("PHP 130"))
+        assertTrue(reply.text.contains("₱160"))
         assertTrue(reply.note!!.contains("too long"))
         Thread.sleep(1_600)
         assertTrue("late words reached the UI: $streamed", !streamed.contains("late"))

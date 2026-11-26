@@ -43,10 +43,24 @@ drops weak results (`Orchestrator.search()`):
 The last rule stops a single shared word from carrying a long question: "who won the basketball game last night?"
 only shares "last" with "Last Day of the Year", so it finds nothing.
 
-Measured on the 478 built-in records: **227 of 228 real questions** (the capri questions, v3's keywords for them, and
+Measured on the 462 built-in records: **227 of 228 real questions** (the capri questions, v3's keywords for them, and
 common one-word topics) pass. Off-topic questions that still match share a real word with a record: "rice" finds the
 Philippine Rice Research Institute, "weather" finds PAGASA. BM25 scores shift as the record set grows, so these are
 re-measured when it changes a lot ([records pipeline](records-pipeline.md#re-measuring-search)).
+
+### What the question asks for
+
+Some question words say which kind of record is wanted. Among the candidates, records of that category get their score
+multiplied by 1.5 (`SearchIndex.intents()`):
+
+| Words in the question | Favours |
+|---|---|
+| magkano, tagpila, pila, mano, tagpira, magkanu, pigara, fee, bayad, presyo, price, cost, how much | fee records |
+| hotline, helpline, number, numero, contact, tawag, call, phone | hotline records |
+| requirements, kailangan, kinahanglan, kasapulan, documents | requirements records |
+
+So "magkano ang NBI clearance" finds the fee, not the NBI hotline or the steps, even though all three mention
+"NBI clearance".
 
 ### Filler words
 
@@ -58,7 +72,7 @@ or "ng" added score to unrelated records.
 
 When the [v3 model](model-v3.md) searches, it writes English keywords ("NBI clearance fee") and the app runs this
 same search on them. If the keywords find nothing, the app searches the original question too. With v3's keywords,
-a record containing the answer is in the top 3 for **97 of 99** answerable test questions on the 478 records.
+a record containing the answer is in the top 3 for **98 of 99** answerable test questions on the 462 records.
 
 ## Limits
 

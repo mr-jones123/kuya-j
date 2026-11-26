@@ -33,7 +33,7 @@ the source attached so they can trust it. [Read the full vision](docs/vision.md)
 |---|---|---|
 | Works offline | Records and the AI model live on the phone; chat never needs the internet | [Architecture](docs/architecture.md) |
 | Answers from records only | Every fee, date and name in an answer must appear in a saved record, or the record is shown instead | [How answering works](docs/answering.md) |
-| 478 records built in | BetterGov.ph's guides (NBI, passport, PSA, TIN, PhilHealth, Pag-IBIG...), holidays, government directory, hotlines and visas, plus Airgap's records | [Records](docs/records.md) · [Pipeline](docs/records-pipeline.md) |
+| 462 records built in | BetterGov.ph's guides (NBI, passport, PSA, TIN, PhilHealth, Pag-IBIG...), holidays, government directory, hotlines and visas, plus Airgap's records | [Records](docs/records.md) · [Pipeline](docs/records-pipeline.md) |
 | Any Philippine language | The model replies in the language of the question | [The v3 model](docs/model-v3.md) |
 | Answer cards | The key value (fee, hotline, date) large, a call button for hotlines, the source and its checked date | [The app UI](docs/ui.md) |
 | Search | A small BM25 search engine over the records, tolerant of typos and partial words | [Search](docs/search.md) |
@@ -108,7 +108,8 @@ testing. [Development guide](docs/development.md).
 ## Credits
 
 - [Airgap](https://github.com/xmpuspus/airgap) by Xavier Puspus: Kuya J's answering pipeline, safety layer, record
-  format and signed sync are ported from Airgap, and 27 of the built-in records come from its government example.
+  format and signed sync are ported from Airgap, and 11 of the built-in records come from its government example
+  (the 16 that BetterGov.ph's data superseded were retired).
 - [BetterGov.ph](https://bettergov.ph): 451 built-in records are harvested from BetterGov.ph's public guides, holidays,
   government directory, hotlines and visa data (CC BY-NC-ND 4.0, adapted with permission).
 - [Gemma 4](https://ai.google.dev/gemma) by Google, run with [LiteRT-LM](https://github.com/google-ai-edge/LiteRT-LM).

@@ -75,7 +75,7 @@ The script fails if any record is over 1,200 characters, lacks a source line, or
 The app's search thresholds were measured on this record set (see [Search](search.md#when-a-match-counts)).
 When the set changes a lot, check two numbers with the evals repository's copy of the search (`evals/retrieval.py`):
 
-- **Answer recall** on the capri questions, using v3's own keywords: 97 of 99 with 478 records.
+- **Answer recall** on the capri questions, using v3's own keywords: 98 of 99 with 462 records.
 - **Off-topic rejection** on small talk in several languages: questions that share no real word with a record must
   find nothing.
 

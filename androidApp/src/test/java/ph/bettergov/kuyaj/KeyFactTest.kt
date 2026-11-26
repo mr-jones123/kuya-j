@@ -17,8 +17,7 @@ class KeyFactTest {
 
     @Test
     fun feesShowTheAmount() {
-        assertEquals(KeyFact("PHP 130", KeyFact.Kind.MONEY), fact("fee-002"))
-        assertNull(fact("fee-011")) // two prices (regular and expedited): no single headline
+        assertNull(fact("bg-guide-passport-what-it-costs")) // two prices (regular and expedited): no single headline
         assertEquals(KeyFact("₱160", KeyFact.Kind.MONEY), fact("bg-guide-nbi-what-it-costs"))
         assertEquals(KeyFact("₱585", KeyFact.Kind.MONEY), fact("bg-guide-drivers-what-it-costs"))
         assertNull(fact("bg-guide-sec-what-it-costs")) // "a minimum of ₱2,000" is not the fee
@@ -29,7 +28,7 @@ class KeyFactTest {
     @Test
     fun hotlinesShowTheNumberAndNeverAYear() {
         assertEquals("1455", fact("hot-005")?.value)
-        assertEquals("911", fact("hot-002")?.value)
+        assertEquals("911", fact("bg-hotline-national-emergency-hotline")?.value)
         assertEquals("8888", fact("hot-001")?.value)
         assertEquals("(02) 8523-8231", fact("hot-010")?.value)
         assertEquals("117", fact("bg-hotline-pnp")?.value)
@@ -38,8 +37,7 @@ class KeyFactTest {
 
     @Test
     fun holidaysShowASingleDateOnly() {
-        assertEquals("20 March 2026", fact("hol-004")?.value)
-        assertNull(fact("hol-001")) // a list of dates has no single headline
+        assertEquals("20 March 2026", fact("bg-holiday-2026-03-20-eid-l-fitr-feast-of-ramadhan")?.value)
         assertEquals("9 April 2026", fact("bg-holiday-2026-04-09-araw-ng-kagitingan")?.value)
         assertNull(fact("bg-holidays-2026-regular"))
     }

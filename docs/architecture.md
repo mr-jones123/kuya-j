@@ -19,7 +19,7 @@ flowchart TB
         ENG[LiteRtLmEngine<br/>implements LlmEngine]
         MM[ModelManager<br/>download + SHA-256]
         SYNC[BundleSync + SyncWorker<br/>signed record updates]
-        ASSETS[(assets/kb/*.json<br/>478 built-in records)]
+        ASSETS[(assets/kb/*.json<br/>462 built-in records)]
     end
     UI --> VM --> O
     O --> SAF

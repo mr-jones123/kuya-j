@@ -57,3 +57,6 @@ dependencies {
     // android.jar only stubs org.json; unit tests need the real one.
     testImplementation("org.json:json:20260719")
 }
+
+// The tests read the shipped records from disk; re-run them whenever the records change.
+tasks.withType<Test>().configureEach { inputs.dir("src/main/assets/kb") }

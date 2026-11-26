@@ -200,8 +200,8 @@ class Orchestrator(
      * Prefix and typo matching find some record for almost any text ("pila" -> "pilipinas"),
      * so a weak top match counts as no match. One word ("pasko") needs 10, two ("sss hotline") 15; longer questions need
      * 25, or 30 if the top record shares only one of their words ("won the game last night" vs "Last Day of the Year").
-     * Words like "the" or "ng" don't count (SearchIndex.STOPWORDS). Measured on the 478 records shipped with the app
-     * (27 seed + 451 from BetterGov.ph): 227 of 228 real questions pass; off-topic questions that still match share a
+     * Words like "the" or "ng" don't count (SearchIndex.STOPWORDS). Measured on the 462 records shipped with the app
+     * (11 from Airgap + 451 from BetterGov.ph): 227 of 228 real questions pass; off-topic questions that still match share a
      * real word with a record ("rice" and PhilRice, "weather" and PAGASA).
      * ponytail: BM25 scores move with corpus size; re-measure (docs/records-pipeline.md) when it changes a lot.
      */

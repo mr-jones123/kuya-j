@@ -56,8 +56,12 @@ class SearchIndex(
                 }
             }
         }
-        return scores.entries.sortedByDescending { it.value }.take(limit)
-            .map { Hit(records[it.key], it.value, matched[it.key]?.size ?: 0) }
+        // What the question asks for ("magkano" -> a fee) lifts records of that category among the close candidates.
+        val wanted = intents(query)
+        return scores.entries
+            .map { (doc, score) -> doc to if (records[doc].category in wanted) score * INTENT_BOOST else score }
+            .sortedByDescending { it.second }.take(limit)
+            .map { (doc, score) -> Hit(records[doc], score, matched[doc]?.size ?: 0) }
     }
 
     // Exact match counts fully; prefix and typo matches count less, as in MiniSearch.
@@ -86,6 +90,21 @@ class SearchIndex(
             "what", "who", "how", "when", "where", "which", "do", "does", "did", "i", "you", "my", "your", "me", "can",
             "ang", "ng", "sa", "mga", "na", "ba", "po", "ko", "mo", "ka", "si", "ni", "kay", "ay", "yung", "nga", "ug",
         )
+
+        private const val INTENT_BOOST = 1.5
+
+        /** Question words that say which kind of record is wanted, in English and Philippine languages. */
+        private val INTENTS = mapOf(
+            "fees" to setOf("magkano", "tagpila", "pila", "mano", "tagpira", "magkanu", "pigara", "fee", "fees", "bayad",
+                "presyo", "price", "cost", "much", "singil", "gastos"),
+            "hotlines" to setOf("hotline", "helpline", "number", "numero", "contact", "tawag", "tawagan", "call", "phone", "telepono"),
+            "requirements" to setOf("requirements", "requirement", "kailangan", "kinahanglan", "kasapulan", "documents", "dokumento"),
+        )
+
+        fun intents(query: String): Set<String> {
+            val words = tokenize(query).toSet()
+            return INTENTS.filterValues { it.any(words::contains) }.keys
+        }
 
         fun tokenize(text: String): List<String> =
             text.lowercase().split(SPLIT).filter { it.length >= 2 && it !in STOPWORDS }
