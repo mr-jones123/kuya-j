@@ -15,7 +15,8 @@ class SearchIndex(
 ) {
     enum class Field { TITLE, KEYWORDS, CONTENT }
 
-    data class Hit(val record: KbRecord, val score: Double)
+    /** [words]: how many of the query's words the record matched exactly or as a prefix (typo matches don't count). */
+    data class Hit(val record: KbRecord, val score: Double, val words: Int = 0)
 
     // field -> term -> (record index -> term frequency)
     private val postings = Field.entries.associateWith { HashMap<String, HashMap<Int, Int>>() }
@@ -40,6 +41,7 @@ class SearchIndex(
 
     fun search(query: String, limit: Int = 3): List<Hit> {
         val scores = HashMap<Int, Double>()
+        val matched = HashMap<Int, MutableSet<String>>()
         for (q in tokenize(query).distinct()) {
             for ((term, weight) in expand(q)) {
                 for (field in Field.entries) {
@@ -49,11 +51,13 @@ class SearchIndex(
                         val norm = 1.2 * (1 - 0.7 + 0.7 * lengths.getValue(field)[doc] / avgLength.getValue(field))
                         val bm25 = idf * (tf * 2.2) / (tf + norm)
                         scores[doc] = (scores[doc] ?: 0.0) + bm25 * weight * boosts.getValue(field)
+                        if (term.startsWith(q)) matched.getOrPut(doc) { mutableSetOf() } += q
                     }
                 }
             }
         }
-        return scores.entries.sortedByDescending { it.value }.take(limit).map { Hit(records[it.key], it.value) }
+        return scores.entries.sortedByDescending { it.value }.take(limit)
+            .map { Hit(records[it.key], it.value, matched[it.key]?.size ?: 0) }
     }
 
     // Exact match counts fully; prefix and typo matches count less, as in MiniSearch.
@@ -76,8 +80,15 @@ class SearchIndex(
     companion object {
         private val SPLIT = Regex("[^\\p{L}\\p{N}]+")
 
+        // Words that say nothing about the topic. Without this, "the", "is" or "ng" add score to unrelated records.
+        private val STOPWORDS = setOf(
+            "the", "is", "are", "was", "a", "an", "of", "to", "in", "on", "for", "and", "or", "at", "by", "with", "it",
+            "what", "who", "how", "when", "where", "which", "do", "does", "did", "i", "you", "my", "your", "me", "can",
+            "ang", "ng", "sa", "mga", "na", "ba", "po", "ko", "mo", "ka", "si", "ni", "kay", "ay", "yung", "nga", "ug",
+        )
+
         fun tokenize(text: String): List<String> =
-            text.lowercase().split(SPLIT).filter { it.isNotEmpty() }
+            text.lowercase().split(SPLIT).filter { it.length >= 2 && it !in STOPWORDS }
 
         private fun textOf(r: KbRecord, field: Field) = when (field) {
             Field.TITLE -> r.title

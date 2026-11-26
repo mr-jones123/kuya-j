@@ -33,6 +33,16 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
+## BetterGov.ph content (CC BY-NC-ND 4.0, adapted with permission)
+
+The `bettergov-*.json` records in `androidApp/src/main/assets/kb/` are harvested by `tools/records/harvest.py` from
+[github.com/bettergovph/bettergov](https://github.com/bettergovph/bettergov) (`src/data`): BetterGov.ph's guides
+(text copied word for word), holidays, government directory, hotlines and visa data. That content is © BetterGov.ph
+contributors under the [Creative Commons Attribution-NonCommercial-NoDerivatives 4.0](https://creativecommons.org/licenses/by-nc-nd/4.0/)
+licence; Kuya J adapts it into records with BetterGov.ph's permission. Each record links its BetterGov.ph page
+(`metadata.via`) and the commit it came from (`metadata.bettergovCommit`). This permission does not extend to
+other uses: anyone reusing these records elsewhere needs BetterGov.ph's permission for adapted versions.
+
 ## Gemma chat template
 
 `androidApp/src/main/assets/gemma4_tool_template.jinja` is Gemma 4's chat template, extracted from the model and

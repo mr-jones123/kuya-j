@@ -33,12 +33,13 @@ the source attached so they can trust it. [Read the full vision](docs/vision.md)
 |---|---|---|
 | Works offline | Records and the AI model live on the phone; chat never needs the internet | [Architecture](docs/architecture.md) |
 | Answers from records only | Every fee, date and name in an answer must appear in a saved record, or the record is shown instead | [How answering works](docs/answering.md) |
+| 478 records built in | BetterGov.ph's guides (NBI, passport, PSA, TIN, PhilHealth, Pag-IBIG...), holidays, government directory, hotlines and visas, plus Airgap's records | [Records](docs/records.md) · [Pipeline](docs/records-pipeline.md) |
 | Any Philippine language | The model replies in the language of the question | [The v3 model](docs/model-v3.md) |
 | Answer cards | The key value (fee, hotline, date) large, a call button for hotlines, the source and its checked date | [The app UI](docs/ui.md) |
 | Search | A small BM25 search engine over the records, tolerant of typos and partial words | [Search](docs/search.md) |
 | Safety | Refuses political opinions, legal and medical advice, and prompt probing; never invents an official | [Safety](docs/safety.md) |
 | Reads photos | Attach a photo of a form or sign; the model reads it and Kuya J answers from the records | [How answering works](docs/answering.md#photos) |
-| Record updates | Signed record bundles download on Wi-Fi; a bad signature is rejected and the old records stay | [Record sync](docs/sync.md) |
+| Record updates | Signed bundles from [kuya-j-records](https://github.com/mr-jones123/kuya-j-records) download on Wi-Fi; a bad signature is rejected and the old records stay | [Record sync](docs/sync.md) |
 | On-device model | [Kuya J v3](https://huggingface.co/sapinsapin/kuya-j-gemma4-e2b): Gemma 4 E2B fine-tuned for Kuya J, run with LiteRT-LM on GPU or CPU | [On-device model](docs/on-device-model.md) |
 | Works without the model | Before the 3 GB model is downloaded, Kuya J answers with the matching record as written | [How answering works](docs/answering.md#without-the-model) |
 
@@ -99,7 +100,7 @@ testing. [Development guide](docs/development.md).
 ## Documentation
 
 - **The app:** [Architecture](docs/architecture.md) · [How answering works](docs/answering.md) ·
-  [Records](docs/records.md) · [Search](docs/search.md) · [Safety](docs/safety.md) · [The app UI](docs/ui.md) ·
+  [Records](docs/records.md) · [Records pipeline](docs/records-pipeline.md) · [Search](docs/search.md) · [Safety](docs/safety.md) · [The app UI](docs/ui.md) ·
   [On-device model](docs/on-device-model.md) · [Record sync](docs/sync.md) · [Development](docs/development.md)
 - **The AI:** [The synthetic dataset](docs/dataset.md) · [The v3 model](docs/model-v3.md) · [Model on Hugging Face](https://huggingface.co/sapinsapin/kuya-j-gemma4-e2b) · [Dataset on Hugging Face](https://huggingface.co/datasets/sapinsapin/kuya-j-distill)
 - **Why:** [Vision](docs/vision.md)
@@ -107,9 +108,10 @@ testing. [Development guide](docs/development.md).
 ## Credits
 
 - [Airgap](https://github.com/xmpuspus/airgap) by Xavier Puspus: Kuya J's answering pipeline, safety layer, record
-  format and signed sync are ported from Airgap, and the 27 built-in records come from its government example.
+  format and signed sync are ported from Airgap, and 27 of the built-in records come from its government example.
+- [BetterGov.ph](https://bettergov.ph): 451 built-in records are harvested from BetterGov.ph's public guides, holidays,
+  government directory, hotlines and visa data (CC BY-NC-ND 4.0, adapted with permission).
 - [Gemma 4](https://ai.google.dev/gemma) by Google, run with [LiteRT-LM](https://github.com/google-ai-edge/LiteRT-LM).
-- [BetterGov.ph](https://bettergov.ph) volunteers, whose public data and guides Kuya J builds on.
 
 ## Licence
 

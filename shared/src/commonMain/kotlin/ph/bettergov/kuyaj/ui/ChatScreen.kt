@@ -330,7 +330,8 @@ private fun BotMessage(m: ChatMessage) {
 
 /**
  * An answer from a record: what kind of fact it is, the one value that matters (fee, number, date) large,
- * the answer text, and the source with its "checked" date at the foot. The large value always comes from the
+ * the answer text, and the source with its date at the foot ("checked" when someone verified it, "listed" when it is
+ * only when BetterGov.ph last listed it). The large value always comes from the
  * record itself (see [keyFact]), never from the model's wording.
  */
 @Composable
@@ -374,17 +375,17 @@ private fun AnswerCard(text: String, reply: Reply, record: KbRecord) {
             }
         }
         Box(Modifier.fillMaxWidth().height(1.dp).background(c.border))
-        SourceRow(record.publisher ?: record.title, record.source, record.asOf)
+        SourceRow(record.publisher ?: record.title, record.source, record.asOf, record.metadata["dateLabel"] as? String ?: "checked")
     }
 }
 
-private val TRAILING_SOURCE = Regex("""\s*Source:\s*https?://\S+?(\s*\(checked [^)]*\))?\.?\s*$""", RegexOption.IGNORE_CASE)
+private val TRAILING_SOURCE = Regex("""\s*Source:\s*https?://\S+?(\s*\((checked|listed) [^)]*\))?\.?\s*$""", RegexOption.IGNORE_CASE)
 
-/** Records end with "Source: <url> (checked <date>)." The card shows that, so the text drops it. */
+/** Records end with "Source: <url> (checked|listed <date>)." The card shows that, so the text drops it. */
 fun withoutSourceLine(text: String): String = text.replace(TRAILING_SOURCE, "").ifBlank { text }
 
 @Composable
-private fun SourceRow(publisher: String, source: String?, asOf: String?) {
+private fun SourceRow(publisher: String, source: String?, asOf: String?, dateLabel: String) {
     val c = LocalKuyaColors.current
     val uriHandler = LocalUriHandler.current
     val url = source?.takeIf { it.startsWith("https://") }
@@ -399,7 +400,7 @@ private fun SourceRow(publisher: String, source: String?, asOf: String?) {
         Column(Modifier.weight(1f)) {
             Text("Source · $publisher", style = Type.smallMedium, color = c.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(
-                listOfNotNull(url?.let { host(it) }, asOf?.let { "checked $it" }).joinToString(" · "),
+                listOfNotNull(url?.let { host(it) }, asOf?.let { "$dateLabel $it" }).joinToString(" · "),
                 style = Type.caption, color = c.muted, maxLines = 1, overflow = TextOverflow.Ellipsis,
             )
         }

@@ -38,6 +38,7 @@ format is the same as an [Airgap](https://github.com/xmpuspus/airgap) bundle doc
 | `metadata.asOf` | no | "checked 2026-10-07" on the card |
 | `metadata.agency` | no | "Fee · NBI" on the card |
 | `metadata.verbatim` | no | `true` = always show as written, never reworded by the model |
+| `metadata.dateLabel` | no | `checked` (default) or `listed`: the word before the date on the card |
 
 `KbRecord.parseArray()` rejects a record that is missing a required field or has the wrong type, so a broken
 file fails loudly instead of answering wrongly.
@@ -54,8 +55,22 @@ file fails loudly instead of answering wrongly.
 
 ## The built-in records
 
-27 records ship inside the app, copied from Airgap's government-services example. Each was written from an
-official page:
+**478 records** ship inside the app, so everything works offline from the moment it's installed:
+
+| Files | From | Records |
+|---|---|---|
+| `bettergov-guides.json` | BetterGov.ph's 19 step-by-step guides, one record per section, text copied word for word | 158 |
+| `bettergov-directory.json` | Department heads, executive offices, Congress leaders, the Supreme Court, government corporations | 182 |
+| `bettergov-holidays.json` | Every holiday for 2025-2027 from the proclamations, plus yearly lists | 69 |
+| `bettergov-visas.json` | Visa types and their requirements | 23 |
+| `bettergov-hotlines.json` | Emergency and agency hotlines | 19 |
+| `fees.json`, `holidays.json`, ... (6 files) | Airgap's government-services example, below | 27 |
+
+The BetterGov.ph records are made by the [records pipeline](records-pipeline.md), which also publishes them for
+[record sync](sync.md). Their extra metadata: `dateLabel` ("checked" or "listed", see the pipeline page), `via`
+(the BetterGov.ph page), `licence` and `bettergovCommit`.
+
+Airgap's 27 records, each written from an official page:
 
 | Category | Records |
 |---|---|
@@ -66,8 +81,8 @@ official page:
 | requirements (2) | NBI clearance, where the DFA lists passport requirements |
 | services (3) | Applying for NBI clearance, getting an SS number, the passport appointment portal |
 
-They were last checked in October 2026. Newer records arrive through [record sync](sync.md); a harvester that turns
-BetterGov.ph's public guides, hotlines, holidays and directory into records is in progress.
+They were last checked in October 2026. Where a BetterGov.ph guide covers the same topic (NBI, passport), the guide is
+usually newer and more detailed; both are kept, and search returns both.
 
 ## Where records come from at runtime
 

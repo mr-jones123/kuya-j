@@ -47,7 +47,9 @@ Any answer that comes from a record (`RECORD` or `MODEL` reply) is a card:
 3. **The answer text**, without its trailing source line.
 4. **A note** if the AI answer was withheld or timed out.
 5. **Call button** for hotlines: opens the dialer with the number filled in.
-6. **Source row:** publisher, website, the date the record was checked; tap to open the page.
+6. **Source row:** publisher, website, and the date: "checked" when someone verified the source then, "listed"
+   when it's the date BetterGov.ph last listed it ([why](records-pipeline.md#dates-checked-or-listed)). Tap to
+   open the page.
 
 ### Where the key value comes from
 
@@ -56,7 +58,7 @@ one the record contains:
 
 | Category | Value | Rule |
 |---|---|---|
-| fees | First amount: `PHP 130` | Currency pattern in the content |
+| fees | The fee: `₱160`, `PHP 130` | Only when the first sentence states one amount, either at its start ("₱160 total.") or after "fee is". Several prices, a minimum or a cap shows no value. |
 | hotlines | The number in the title (`SSS hotline 1455`), else the first full phone number in the content | Years are never taken as numbers |
 | holidays | A single date in the title, written as `20 March 2026` | A list of dates shows no value |
 | others | none | |

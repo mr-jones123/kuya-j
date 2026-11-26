@@ -4,7 +4,9 @@ Records change: fees go up, officials change, new holidays are proclaimed. Kuya 
 a **signed bundle** over Wi-Fi. The design is Airgap's: whoever controls the update server still can't push records
 the app will accept unless they hold the signing key.
 
-Sync is off until a server and key are configured; the app then runs on its built-in records only.
+The app syncs from **https://mr-jones123.github.io/kuya-j-records** (GitHub Pages), signed with the publisher's key.
+How records are made and published: [The records pipeline](records-pipeline.md). Without a server and key configured,
+the app runs on its built-in records only.
 
 ## The flow
 
@@ -76,8 +78,8 @@ bundle, or falls back to the built-in records.
 In `gradle.properties`:
 
 ```properties
-kuyaj.syncBaseUrl=https://chat.bettergov.ph
-kuyaj.syncPublicKeys=<keyId>:<base64 Ed25519 public key>
+kuyaj.syncBaseUrl=https://mr-jones123.github.io/kuya-j-records
+kuyaj.syncPublicKeys=a71fd704bf13d226:8e6y53BmSEvqS0KqtpsPw/t21qm10NNDFufdkPh1bMw=
 ```
 
 Several keys may be listed, comma-separated. That allows rotating keys: ship an app that trusts the old and new
@@ -92,6 +94,30 @@ builds require HTTPS.
 `SyncWorker` (WorkManager) runs every 6 hours on an unmetered network (Wi-Fi), and once at startup. *Update on next
 Wi-Fi* in Settings queues an immediate run that still waits for Wi-Fi. After every run the settings sheet's
 freshness updates, and answers carry a [staleness note](answering.md#staleness) when records are over a day old.
+
+## Hosting and scale
+
+The host only serves two static files over HTTPS: the manifest and the bundle, on the same origin, with no
+redirects. No server code, no login; the signature is what the app trusts.
+
+| Per phone | Size | How often |
+|---|---|---|
+| Manifest | about 1 KB | Every 6 hours on Wi-Fi |
+| Bundle | about 630 KB, about 77 KB compressed | Only when there's a new version |
+| Model (from Hugging Face) | 3 GB | Once |
+
+WorkManager spreads syncs over each phone's own 6-hour window, so a release trickles out rather than spiking.
+
+- **GitHub Pages** (now): free, every release is an auditable commit; fine to tens of thousands of users (about
+  100 GB a month of bandwidth, a soft limit).
+- **Cloudflare Pages or R2** (at scale): free egress and edge caching; handles millions of phones. A mirror of the
+  3 GB model there would also take load off Hugging Face.
+
+Moving hosts means publishing with the new `--base-url` and shipping an app update with the new
+`kuyaj.syncBaseUrl`; the keys don't change.
+
+Verified end to end on an emulator: the app fetched the manifest from GitHub Pages, downloaded and verified the
+bundle, and switched to 478 records (Settings → Records: "Downloaded update").
 
 Tested in `BundleVerifierTest`: a genuine bundle passes; a changed byte, an attacker's bundle with a matching hash,
 an unpinned key, and HTTP in a release build are all rejected; versions order correctly.

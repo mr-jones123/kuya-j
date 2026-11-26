@@ -4,3 +4,5 @@ local.properties
 .idea/
 *.iml
 .kotlin/
+tools/records/.cache/
+__pycache__/

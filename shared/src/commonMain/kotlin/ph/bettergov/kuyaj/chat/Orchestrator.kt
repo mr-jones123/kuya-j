@@ -175,14 +175,22 @@ class Orchestrator(
 
     /**
      * Prefix and typo matching find some record for almost any text ("pila" -> "pilipinas"),
-     * so a weak top match counts as no match. One or two words ("pasko", "sss hotline") get a lower bar.
-     * ponytail: thresholds measured on the 27 seed records (real questions >= 23, off-topic <= 18);
-     * BM25 scores move with corpus size, so re-measure when bundles grow.
+     * so a weak top match counts as no match. One word ("pasko") needs 10, two ("sss hotline") 15; longer questions need
+     * 25, or 30 if the top record shares only one of their words ("won the game last night" vs "Last Day of the Year").
+     * Words like "the" or "ng" don't count (SearchIndex.STOPWORDS). Measured on the 478 records shipped with the app
+     * (27 seed + 451 from BetterGov.ph): 227 of 228 real questions pass; off-topic questions that still match share a
+     * real word with a record ("rice" and PhilRice, "weather" and PAGASA).
+     * ponytail: BM25 scores move with corpus size; re-measure (docs/records-pipeline.md) when it changes a lot.
      */
     private fun search(query: String): List<SearchIndex.Hit> {
         val hits = store.search(query, TOP_K)
-        val min = if (SearchIndex.tokenize(query).size <= 2) 5.0 else 20.0
-        return if ((hits.firstOrNull()?.score ?: 0.0) >= min) hits else emptyList()
+        val top = hits.firstOrNull() ?: return emptyList()
+        val ok = when (SearchIndex.tokenize(query).size) {
+            0, 1 -> top.score >= 10.0
+            2 -> top.score >= 15.0
+            else -> top.score >= 25.0 && (top.words >= 2 || top.score >= 30.0)
+        }
+        return if (ok) hits else emptyList()
     }
 
     private fun userMessage(question: String, records: List<KbRecord>): String = buildString {

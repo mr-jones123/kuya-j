@@ -111,7 +111,12 @@ adb shell cmd uimode night yes                # dark mode
 
 ## Adding or changing records
 
-1. Edit or add a file in `androidApp/src/main/assets/kb/` following [the record format](records.md).
+BetterGov.ph records come from the [records pipeline](records-pipeline.md): harvest, review, publish, then copy
+`kuya-j-records/records/*.json` into `androidApp/src/main/assets/kb/` so the built-in set matches what phones sync.
+For a hand-written record:
+
+1. Add it to a file in `kuya-j-records/records/` following [the record format](records.md), publish, and copy the
+   files into `androidApp/src/main/assets/kb/`.
 2. Run the unit tests: `KbRecord` parsing fails on a missing field, and `KeyFactTest` checks the answer-card values.
 3. If you add a category, give it a style in `Categories.kt` and, if it has one clear value, a rule in
    `AnswerFacts.kt`.

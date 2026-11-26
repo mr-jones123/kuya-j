@@ -21,7 +21,13 @@ private val MONTHS = listOf("January", "February", "March", "April", "May", "Jun
  * the card must not show a number the record doesn't contain. Returns null when there's no single clear value.
  */
 fun keyFact(record: KbRecord): KeyFact? = when (record.category) {
-    "fees" -> MONEY.find(record.content)?.let { KeyFact(it.value.replace("Php", "PHP"), KeyFact.Kind.MONEY) }
+    // Only when the first sentence states one amount as the fee: "₱160 total." or "...the fee is PHP 130."
+    // Other amounts are often minimums, caps or one of several prices (SEC's "minimum of ₱2,000"), not the fee.
+    "fees" -> firstSentence(record.content).let { s ->
+        MONEY.findAll(s).toList().singleOrNull()
+            ?.takeIf { it.range.first == 0 || s.substring(0, it.range.first).trimEnd().endsWith("fee is", ignoreCase = true) }
+            ?.let { KeyFact(it.value.replace("Php", "PHP"), KeyFact.Kind.MONEY) }
+    }
     // The title names the main number ("SSS hotline 1455"); fall back to the first full number in the text.
     "hotlines" -> (PHONE.find(record.title.replace(Regex("""\b20\d{2}\b"""), ""))
         ?: PHONE.find(record.content.replace(ISO_DATE, "")).takeIf { it != null && it.value.length >= 7 })
@@ -29,6 +35,9 @@ fun keyFact(record: KbRecord): KeyFact? = when (record.category) {
     "holidays" -> ISO_DATE.find(record.title)?.let { KeyFact(longDate(it), KeyFact.Kind.DATE) }
     else -> null
 }
+
+private fun firstSentence(text: String): String =
+    text.removePrefix("What it costs:").trim().split(Regex("""(?<=[.!?])\s+(?=[A-Z])""")).first()
 
 /** 2026-03-20 -> "20 March 2026", the order Philippine agencies write dates in. */
 private fun longDate(m: MatchResult): String {

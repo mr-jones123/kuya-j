@@ -103,7 +103,7 @@ private fun SettingsContent(vm: ChatViewModel, onClose: () -> Unit) {
             }
         }
         if (kb.syncConfigured) {
-            Hint("Updates download every 6 hours on Wi-Fi. Each one is checked against BetterGov's signature before it replaces anything.")
+            Hint("Updates download every 6 hours on Wi-Fi. Each one must carry the Kuya J publisher's signature before it replaces anything.")
             KButton("Update on next Wi-Fi", { services.syncNow() }, kind = ButtonKind.Secondary)
         } else {
             Hint("This build has no update server, so Kuya J uses the records built into the app.")
@@ -142,6 +142,10 @@ private fun SettingsContent(vm: ChatViewModel, onClose: () -> Unit) {
                 Text(
                     "Kuya J is a BetterGov.ph civic assistant. This version answers from saved, dated public records. Check the agency's official page before you act on a fee, hotline or office holder.",
                     style = Type.small, color = c.muted,
+                )
+                Text(
+                    "Records: BetterGov.ph guides, holidays, directory and hotlines (CC BY-NC-ND 4.0, used with permission), and Airgap by Xavier Puspus (MIT). Facts come from the government pages linked in each answer.",
+                    style = Type.caption, color = c.faint,
                 )
             }
         }

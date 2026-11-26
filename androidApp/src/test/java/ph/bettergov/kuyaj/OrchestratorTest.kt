@@ -145,10 +145,13 @@ class OrchestratorTest {
 
     @Test fun offTopicGetsFallbackButShortQueriesStillMatch() = runBlocking {
         val o = Orchestrator(store, llm = { null })
-        for (q in listOf("who won the basketball game last night?", "paano magluto ng adobo?", "what is the weather tomorrow?")) {
+        for (q in listOf("who won the basketball game last night?", "paano magluto ng adobo?", "tell me a joke about cats")) {
             o.clear()
             assertEquals(q, Orchestrator.FALLBACK, o.reply(q).text)
         }
+        // With BetterGov's hotlines, a weather question finds the weather agency, which is a fair answer.
+        o.clear()
+        assertTrue(o.reply("what is the weather tomorrow?").sources.first().title.contains("PAGASA"))
         o.clear()
         assertEquals(Reply.Kind.RECORD, o.reply("pasko").kind)
         o.clear()
