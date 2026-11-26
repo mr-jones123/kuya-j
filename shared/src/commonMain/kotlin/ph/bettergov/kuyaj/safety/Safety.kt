@@ -75,8 +75,15 @@ object Safety {
     // ---- Grounding ----------------------------------------------------------
 
     private val MONTHS = listOf("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")
-    private const val MONTH_NAME =
-        "(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\\.?"
+    // Filipino month names, as the model writes them in Tagalog, Cebuano, Ilocano and others ("30 Nobyembre 2026").
+    private val FILIPINO_MONTHS = mapOf(
+        "enero" to 1, "pebrero" to 2, "febrero" to 2, "marso" to 3, "abril" to 4, "mayo" to 5, "hunyo" to 6, "hulyo" to 7,
+        "agosto" to 8, "setyembre" to 9, "septiyembre" to 9, "septyembre" to 9, "oktubre" to 10, "nobyembre" to 11,
+        "disyembre" to 12,
+    )
+    private val MONTH_NAME =
+        "(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?|" +
+            FILIPINO_MONTHS.keys.joinToString("|") + ")\\.?"
     private val DATE = Regex(
         "\\b(?:(\\d{4})-(\\d{2})-(\\d{2})" +
             "|(\\d{1,2})/(\\d{1,2})/(\\d{2,4})" +
@@ -89,11 +96,13 @@ object Safety {
     private val CALENDAR_WORDS = MONTHS + listOf(
         "january", "february", "march", "april", "june", "july", "august", "sept", "september", "october",
         "november", "december", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
-    )
+        "lunes", "martes", "miyerkules", "miyerkoles", "huwebes", "biyernes", "sabado", "linggo",
+    ) + FILIPINO_MONTHS.keys
 
     internal data class DateParts(val month: Int, val day: Int, val year: Int?)
 
-    private fun monthIndex(name: String) = MONTHS.indexOf(name.take(3).lowercase()) + 1
+    private fun monthIndex(name: String) =
+        FILIPINO_MONTHS[name.lowercase().trimEnd('.')] ?: (MONTHS.indexOf(name.take(3).lowercase()) + 1)
 
     private fun parseDates(text: String): List<Pair<String, List<DateParts>>> = DATE.findAll(text).map { m ->
         val g = m.groupValues

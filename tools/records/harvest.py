@@ -219,7 +219,9 @@ SECTIONS = {  # heading -> (category, label in the title, extra search words)
     "deadlines and penalties": ("services", "deadlines and penalties", ["deadline", "penalty", "multa", "late"]),
 }
 LEDE = {  # blockquote label -> (category, label, extra search words)
-    "what it costs": ("fees", "fees", ["fee", "magkano", "bayad", "how much", "cost", "price", "presyo"]),
+    # "How much" in Tagalog, Cebuano/Hiligaynon, Ilocano, Waray, Kapampangan, Pangasinan, Bikol.
+    "what it costs": ("fees", "fees", ["fee", "magkano", "bayad", "how much", "cost", "price", "presyo", "tagpila", "pila",
+                                       "mano", "tagpira", "magkanu", "pigara", "gastos", "singil"]),
     "who this is for": ("services", "who can apply", ["who can apply", "sino ang pwede", "eligible", "qualified"]),
     "how long it takes": ("services", "processing time", ["how long", "gaano katagal", "processing time", "release"]),
 }

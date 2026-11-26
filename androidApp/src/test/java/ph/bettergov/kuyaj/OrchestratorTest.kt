@@ -108,6 +108,13 @@ class OrchestratorTest {
         assertTrue("streamed: $streamed", !streamed.contains("500"))
     }
 
+    @Test fun filipinoDatesAreCheckedNotTakenForNames() {
+        val holiday = records.first { it.id == "bg-holiday-2026-11-30-bonifacio-day" }
+        val sources = Safety.sources(listOf(holiday), "Kailan ang Bonifacio Day?")
+        assertTrue(Safety.ungrounded("Ang Bonifacio Day ay sa Lunes, 30 Nobyembre 2026.", sources).isEmpty())
+        assertTrue(Safety.ungrounded("Ang Bonifacio Day ay sa 29 Nobyembre 2026.", sources).isNotEmpty())
+    }
+
     @Test fun inventedNameIsCaught() {
         val sources = Safety.sources(store.search("NBI clearance fee").map { it.record }, "NBI clearance fee")
         assertTrue(Safety.ungrounded("The fee was set by Secretary Juan Dela Cruz.", sources).isNotEmpty())

@@ -3,6 +3,7 @@ package ph.bettergov.kuyaj
 import android.app.Application
 import android.content.Context
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -72,7 +73,10 @@ class AppContainer(private val context: Context) : KuyaServices {
         }
     }
 
-    override fun startModelDownload() = models.startDownload()
+    override fun startModelDownload() {
+        models.startDownload()
+        prepareModel()
+    }
 
     override fun deleteModel() {
         engine.close()
@@ -81,9 +85,15 @@ class AppContainer(private val context: Context) : KuyaServices {
 
     override fun syncNow() = SyncWorker.syncNow(context)
 
-    override suspend fun prepareModel() {
-        if (models.state.value is ModelState.Downloading) models.awaitDownload()
-        loadModelIfReady()
+    private var preparing: Job? = null
+
+    @Synchronized
+    override fun prepareModel() {
+        if (preparing?.isActive == true) return
+        preparing = scope.launch {
+            if (models.state.value is ModelState.Downloading) models.awaitDownload()
+            loadModelIfReady()
+        }
     }
 
     suspend fun loadModelIfReady() {

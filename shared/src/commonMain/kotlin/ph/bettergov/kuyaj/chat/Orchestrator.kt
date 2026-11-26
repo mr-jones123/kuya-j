@@ -122,7 +122,12 @@ class Orchestrator(
         val live = Live()
         val generated = runModel(live) {
             engine.generateWithSearch(TOOL_SYSTEM_PROMPT, question, search = { query ->
-                val hits = search(query).ifEmpty { search(question) }.map { it.record }
+                // The question's own top record always gets a place: a misread word ("tagpila" taken for an office)
+                // makes the model's keywords miss what the person asked.
+                val byKeywords = search(query)
+                val byQuestion = search(question)
+                val hits = (byKeywords.take(TOP_K - 1) + byQuestion.take(1) + byKeywords.drop(TOP_K - 1) + byQuestion.drop(1))
+                    .distinctBy { it.record.id }.take(TOP_K).map { it.record }
                 // ponytail: a second call widens the sources and restarts the gate; the model makes one call in practice.
                 found = (found + hits).distinctBy { it.id }
                 gate = Safety.TokenGate(Safety.sources(found, question, NAMES), onText)
@@ -131,6 +136,8 @@ class Orchestrator(
         }
         if (generated is ModelRun.Done && generated.text == null) return null // not a searching model
         if (found.isEmpty()) return null
+        // If the model's answer is withheld, show the record closest to the question ("Bonifacio Day 2026", not 2025).
+        found = bySupport(found, question)
         val top = found.first()
         val recordReply = Reply(withStaleness(top.content), Reply.Kind.RECORD, found)
         if (top.verbatim) return recordReply
@@ -170,7 +177,17 @@ class Orchestrator(
         if (halted || issues.isNotEmpty() || generated.length < 2) {
             return recordReply.copy(note = "The AI answer was withheld: ${issues.firstOrNull() ?: "it stated something the records do not"}. The record is shown as written.")
         }
-        return Reply(withStaleness(generated), Reply.Kind.MODEL, records, photoReading = recordReply.photoReading)
+        return Reply(withStaleness(generated), Reply.Kind.MODEL, bySupport(records, generated), photoReading = recordReply.photoReading)
+    }
+
+    /**
+     * Records ordered by how many of the text's numbers and words they contain, title matches counting double, so the
+     * card shows the record the answer used ("Bonifacio Day: 2026-11-30", not the 2027 record that cites a 2026 law).
+     */
+    private fun bySupport(records: List<KbRecord>, text: String): List<KbRecord> {
+        val terms = SearchIndex.tokenize(text).filter { it.length > 3 || it.any(Char::isDigit) }.toSet()
+        fun hits(s: String) = SearchIndex.tokenize(s).toSet().count { it in terms }
+        return records.sortedByDescending { r -> 2 * hits(r.title) + hits(r.content) }
     }
 
     /**

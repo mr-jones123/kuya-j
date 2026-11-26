@@ -42,6 +42,9 @@ interface KuyaServices {
     fun deleteModel()
     fun syncNow()
 
-    /** Waits for a running download, then starts the model if it's ready. */
-    suspend fun prepareModel()
+    /**
+     * In the background, waits for a running download and its checksum, then starts the model. Returns at once:
+     * the work belongs to the app, not to the screen that asked, so closing Settings doesn't cancel it.
+     */
+    fun prepareModel()
 }
