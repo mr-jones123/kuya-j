@@ -105,6 +105,8 @@ class SearchIndex(
             "requirements" to setOf("requirements", "requirement", "kailangan", "kinahanglan", "kasapulan", "documents", "dokumento"),
             "history" to setOf("born", "birth", "birthday", "ipinanganak", "isinilang", "kapanganakan", "kaarawan", "natawo",
                 "died", "death", "namatay", "kamatayan", "pumanaw", "binaril", "history", "kasaysayan", "founded", "itinatag"),
+            // "Sino ang Pangulo ng Pilipinas?" asks who holds the office now, not for a marker of a past President.
+            "officials" to setOf("sino", "who", "kinsa", "siasino"),
         )
 
         fun intents(query: String): Set<String> {

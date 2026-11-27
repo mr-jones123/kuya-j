@@ -50,7 +50,7 @@ dependencies {
     implementation("org.jetbrains.compose.foundation:foundation:1.12.2")
     implementation("androidx.activity:activity-compose:1.12.4")
     implementation("androidx.work:work-runtime-ktx:2.11.2")
-    implementation("com.google.ai.edge.litertlm:litertlm-android:0.18.1")
+    implementation("com.google.ai.edge.litertlm:litertlm-android:0.20.0")
     implementation("org.bouncycastle:bcprov-jdk18on:1.86")
 
     testImplementation("junit:junit:4.13.2")
@@ -59,4 +59,8 @@ dependencies {
 }
 
 // The tests read the shipped records from disk; re-run them whenever the records change.
-tasks.withType<Test>().configureEach { inputs.dir("src/main/assets/kb") }
+tasks.withType<Test>().configureEach {
+    inputs.dir("src/main/assets/kb")
+    // The conversation eval talks to a model server, so it always re-runs when asked for (see ConversationEval).
+    outputs.upToDateWhen { System.getenv("KUYAJ_EVAL_URL") == null }
+}

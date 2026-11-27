@@ -940,8 +940,8 @@
  {
   "id": "bg-exec-office-of-the-president",
   "category": "officials",
-  "title": "Office of the President: President",
-  "content": "As listed by BetterGov.ph on 2026-11-19, H.E. Ferdinand R. Marcos Jr. is President of the Office of the President. Address: Malacañang Palace Compound, New Executive Bldg. J. P. Laurel St., San Miguel, 1005 Manila. Trunkline: (632) 8249-8310. Website: www.op-proper.gov.ph.\nSource: https://bettergov.ph/government (listed 2026-11-19).",
+  "title": "President of the Philippines (Pangulo ng Pilipinas): Office of the President",
+  "content": "As listed by BetterGov.ph on 2026-11-19, H.E. Ferdinand R. Marcos Jr. is the President of the Philippines (Office of the President). Address: Malacañang Palace Compound, New Executive Bldg. J. P. Laurel St., San Miguel, 1005 Manila. Trunkline: (632) 8249-8310. Website: www.op-proper.gov.ph.\nSource: https://bettergov.ph/government (listed 2026-11-19).",
   "keywords": [
    "who",
    "is",
@@ -958,7 +958,14 @@
    "Presidente",
    "OP",
    "address",
-   "number"
+   "number",
+   "Philippines",
+   "current",
+   "Philippine",
+   "Pilipinas",
+   "bansa",
+   "Republic",
+   "Republika"
   ],
   "tags": [
    "bettergov",
@@ -979,8 +986,8 @@
  {
   "id": "bg-exec-office-of-the-vice-president",
   "category": "officials",
-  "title": "Office of the Vice President: Vice President",
-  "content": "As listed by BetterGov.ph on 2026-11-19, Sara Z. Duterte is Vice President of the Office of the Vice President. Address: 11th Floor, Robinson's Cybergate Plaza, EDSA, cor Pioneer St., Mandaluyong City. Trunkline: (632) 8532-5942; 8370-1719. Website: www.ovp.gov.ph.\nSource: https://bettergov.ph/government (listed 2026-11-19).",
+  "title": "Vice President of the Philippines (Pangalawang Pangulo ng Pilipinas): Office of the Vice President",
+  "content": "As listed by BetterGov.ph on 2026-11-19, Sara Z. Duterte is the Vice President of the Philippines (Office of the Vice President). Address: 11th Floor, Robinson's Cybergate Plaza, EDSA, cor Pioneer St., Mandaluyong City. Trunkline: (632) 8532-5942; 8370-1719. Website: www.ovp.gov.ph.\nSource: https://bettergov.ph/government (listed 2026-11-19).",
   "keywords": [
    "who",
    "is",
@@ -1000,7 +1007,14 @@
    "Pangulo",
    "OVP",
    "address",
-   "number"
+   "number",
+   "Philippines",
+   "current",
+   "Philippine",
+   "Pilipinas",
+   "bansa",
+   "Republic",
+   "Republika"
   ],
   "tags": [
    "bettergov",

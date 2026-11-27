@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <!-- Debug builds only: runs a question file through the app's answering path and logs timings. -->
+        <receiver android:name=".BenchReceiver" android:exported="true" />
+    </application>
+</manifest>

@@ -6,7 +6,7 @@ Kuya J is one Compose Multiplatform project with two modules. Everything that do
 ```mermaid
 flowchart TB
     subgraph shared["shared/ (commonMain: Android and iOS)"]
-        UI[ui/<br/>ChatScreen, SettingsSheet,<br/>answer cards, theme]
+        UI[ui/<br/>ChatScreen, SettingsSheet,<br/>answers and record cards, theme]
         VM[ChatViewModel]
         O[chat/Orchestrator<br/>the answering pipeline]
         SAF[safety/Safety<br/>input rules, grounding check]
@@ -72,7 +72,7 @@ Until the model loads, Kuya J already answers, with the matching record as writt
 3. Text streams into the bot message as the model writes, but only words that pass the grounding check reach
    the screen.
 4. The final `Reply` replaces the streamed text and carries its kind (record, AI-checked, refusal, system) and
-   its source records, which the [answer card](ui.md#answer-cards) shows.
+   its source records, which the [Sources chip](ui.md#answers-and-sources) opens.
 
 ## Where things are
 

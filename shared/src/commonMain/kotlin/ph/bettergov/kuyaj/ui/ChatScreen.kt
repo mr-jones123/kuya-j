@@ -38,6 +38,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -127,7 +130,7 @@ fun ChatScreen(vm: ChatViewModel, onOpenSettings: () -> Unit, onPickPhoto: () ->
                         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp),
                         verticalArrangement = Arrangement.spacedBy(20.dp),
                     ) {
-                        items(messages, key = { it.id }) { m -> if (m.fromUser) UserMessage(m) else BotMessage(m) }
+                        items(messages, key = { it.id }) { m -> if (m.fromUser) UserMessage(m) else BotMessage(m, vm::send) }
                     }
                 }
             }
@@ -300,10 +303,11 @@ private fun UserMessage(m: ChatMessage) {
 }
 
 @Composable
-private fun BotMessage(m: ChatMessage) {
+@OptIn(ExperimentalLayoutApi::class)
+private fun BotMessage(m: ChatMessage, onAsk: (String) -> Unit) {
     val c = LocalKuyaColors.current
     val reply = m.reply
-    val record = reply?.sources?.firstOrNull()?.takeIf { reply.kind == Reply.Kind.RECORD || reply.kind == Reply.Kind.MODEL }
+    val sourced = reply != null && reply.sources.isNotEmpty() && (reply.kind == Reply.Kind.RECORD || reply.kind == Reply.Kind.MODEL)
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Image(painterResource(Res.drawable.kuya_j_mascot), contentDescription = null, modifier = Modifier.size(24.dp).clip(CircleShape))
@@ -318,28 +322,88 @@ private fun BotMessage(m: ChatMessage) {
         }
         when {
             m.text.isEmpty() && m.streaming -> Box(Modifier.padding(vertical = 6.dp)) { TypingDots() }
-            record != null && !m.streaming -> AnswerCard(m.text, reply, record)
             reply?.kind == Reply.Kind.REFUSAL -> Text(
                 m.text, style = Type.body, color = c.ink,
                 modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(c.surfaceSunken).padding(14.dp),
             )
-            else -> Text(m.text, style = Type.body, color = c.ink)
+            // The answer is plain text, the same while it streams and after, so nothing jumps when it finishes.
+            else -> Text(if (sourced) withoutSourceLine(m.text) else m.text, style = Type.body, color = c.ink)
+        }
+        if (sourced && !m.streaming) Sources(m.text, reply)
+        // What the records do have, when nothing answered exactly: each one asks that question.
+        if (reply != null && reply.suggestions.isNotEmpty() && !m.streaming) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                reply.suggestions.forEach { s -> ExampleChip(s) { onAsk(s) } }
+            }
         }
     }
 }
 
 /**
- * An answer from a record: what kind of fact it is, the one value that matters (fee, number, date) large,
- * the answer text, and the source with its date at the foot ("checked" when someone verified it, "listed" when it is
- * only when BetterGov.ph last listed it). The large value always comes from the
- * record itself (see [keyFact]), never from the model's wording.
+ * Under a sourced answer: why the text may differ from the model's (if it was withheld), a call button for a hotline,
+ * and a "Sources" chip. Tapping the chip opens a card per record the answer came from.
  */
 @Composable
-private fun AnswerCard(text: String, reply: Reply, record: KbRecord) {
+private fun Sources(text: String, reply: Reply) {
+    val c = LocalKuyaColors.current
+    val uriHandler = LocalUriHandler.current
+    var open by remember(reply) { mutableStateOf(false) }
+    val top = reply.sources.first()
+    val fact = keyFact(top)?.takeIf { reply.kind == Reply.Kind.RECORD || it.statedIn(text) }
+    reply.note?.let {
+        Text(
+            it, style = Type.small, color = c.warning,
+            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(c.warningSoft).padding(10.dp),
+        )
+    }
+    if (fact?.kind == KeyFact.Kind.PHONE) {
+        KButton("Call ${fact.value}", { uriHandler.openUri("tel:${fact.dialable}") }, modifier = Modifier.fillMaxWidth())
+    }
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            Modifier.clip(RoundedCornerShape(50)).background(c.surfaceSunken)
+                .clickable(role = Role.Button, onClickLabel = if (open) "Hide sources" else "Show sources") { open = !open }
+                .heightIn(min = 36.dp).padding(start = 6.dp, end = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            // One overlapping badge per kind of record, like a stack of logos.
+            Row(horizontalArrangement = Arrangement.spacedBy((-8).dp)) {
+                reply.sources.map { categoryStyle(it.category) }.distinctBy { it.label }.forEach { st ->
+                    Box(
+                        Modifier.size(24.dp).clip(CircleShape).background(c.surface).border(1.dp, c.border, CircleShape),
+                        contentAlignment = Alignment.Center,
+                    ) { UnstyledIcon(painterResource(st.icon), contentDescription = null, tint = st.accent, modifier = Modifier.size(13.dp)) }
+                }
+            }
+            Text(
+                if (reply.sources.size == 1) "Source" else "Sources · ${reply.sources.size}",
+                style = Type.smallMedium, color = c.ink, modifier = Modifier.padding(start = 8.dp),
+            )
+        }
+        if (reply.kind == Reply.Kind.MODEL) {
+            Pill("Checked against record", icon = painterResource(Res.drawable.ic_shield_check), color = c.success, background = c.success.copy(alpha = 0.12f))
+        } else {
+            Pill("Official record", icon = painterResource(Res.drawable.ic_file_text))
+        }
+    }
+    AnimatedVisibility(open, enter = fadeIn(), exit = fadeOut()) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            // A record shown as the answer itself isn't repeated in its card.
+            reply.sources.forEachIndexed { i, r -> SourceCard(r, showText = !(i == 0 && reply.kind == Reply.Kind.RECORD)) }
+        }
+    }
+}
+
+/**
+ * One record behind an answer: what kind of fact it is, the one value that matters (fee, number, date) large, the
+ * record as written, and the source with its date at the foot ("checked" when someone verified it, "listed" when it is
+ * only when BetterGov.ph last listed it). Everything here comes from the record (see [keyFact]), never the model.
+ */
+@Composable
+private fun SourceCard(record: KbRecord, showText: Boolean) {
     val c = LocalKuyaColors.current
     val style = categoryStyle(record.category)
-    val fact = keyFact(record)?.takeIf { reply.kind == Reply.Kind.RECORD || it.statedIn(text) }
-    val uriHandler = LocalUriHandler.current
+    val fact = keyFact(record)
     val shape = RoundedCornerShape(20.dp)
     Column(Modifier.fillMaxWidth().clip(shape).background(c.surface).border(1.dp, c.border, shape)) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -351,28 +415,12 @@ private fun AnswerCard(text: String, reply: Reply, record: KbRecord) {
                     listOfNotNull(style.label, record.metadata["agency"] as? String).joinToString(" · "),
                     style = Type.smallMedium, color = style.accent, modifier = Modifier.padding(start = 8.dp).weight(1f),
                 )
-                if (reply.kind == Reply.Kind.MODEL) {
-                    Pill("Checked against record", icon = painterResource(Res.drawable.ic_shield_check), color = c.success, background = c.success.copy(alpha = 0.12f))
-                } else {
-                    Pill("Official record", icon = painterResource(Res.drawable.ic_file_text))
-                }
             }
-            if (fact != null) {
-                Column {
-                    Text(fact.value, style = Type.figure, color = c.ink)
-                    Text(record.title, style = Type.caption, color = c.muted)
-                }
+            Column {
+                if (fact != null) Text(fact.value, style = Type.figure, color = c.ink)
+                Text(record.title, style = if (fact != null) Type.caption else Type.smallMedium, color = if (fact != null) c.muted else c.ink)
             }
-            Text(withoutSourceLine(text), style = Type.body, color = c.ink)
-            reply.note?.let {
-                Text(
-                    it, style = Type.small, color = c.warning,
-                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(c.warningSoft).padding(10.dp),
-                )
-            }
-            if (fact?.kind == KeyFact.Kind.PHONE) {
-                KButton("Call ${fact.value}", { uriHandler.openUri("tel:${fact.dialable}") }, modifier = Modifier.fillMaxWidth())
-            }
+            if (showText) Text(withoutSourceLine(record.content), style = Type.small, color = c.muted)
         }
         Box(Modifier.fillMaxWidth().height(1.dp).background(c.border))
         SourceRow(record.publisher ?: record.title, record.source, record.asOf, record.metadata["dateLabel"] as? String ?: "checked")

@@ -1,7 +1,12 @@
 # On-device model
 
 Kuya J's AI runs entirely on the phone with [LiteRT-LM](https://github.com/google-ai-edge/LiteRT-LM), Google's
-runtime for language models on mobile. Nothing is sent to a server. The code is in `androidApp/.../llm/`.
+runtime for language models on mobile (`litertlm-android` **0.20.0**). Nothing is sent to a server. The code is in
+`androidApp/.../llm/`.
+
+The runtime version matters: a model exported with GPU operations switched on
+([the v3 re-export](model-v3.md#speed-on-the-phone)) only compiles for the GPU on 0.20.0. On 0.18.1 it fell back
+to CPU, with a 9-second wait for the first word.
 
 ## Which model
 
@@ -76,5 +81,15 @@ then push again.
 
 ## Performance
 
-On a Qualcomm test phone with v3 on GPU: first word in 1.9-3.0 s, a full answer in 3.9-7.5 s. On an emulator's
-CPU, answers can take over the 60-second deadline; Kuya J then shows the record as written.
+On a Snapdragon 8 Elite (GPU), over 40 history questions:
+
+| Model file | Tokens per second | First word | Full answer |
+|---|---|---|---|
+| Stock Gemma 4 E2B | 43 | 1.3 s | 3.2 s |
+| Kuya J v3 (the download) | 21 | 2.3 s | 5.2 s |
+| Kuya J v3, re-exported with GPU operations | 28 | 1.5 s | 3.8 s |
+
+[Why v3 is slower than stock, and what the re-export changes](model-v3.md#speed-on-the-phone). The engine logs
+each generation's first-token time and rate under `KuyaJ.Llm`; the rate counts streamed chunks, which is about one
+token each. On an emulator's CPU, answers can take over the 60-second deadline; Kuya J then shows the record as
+written.

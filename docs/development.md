@@ -15,7 +15,7 @@ Versions: Kotlin 2.4.20, AGP 9.5.0, Compose Multiplatform 1.12.2, Gradle 9.7.0 (
 | Task | Command |
 |---|---|
 | Build and install a debug APK | `./gradlew :androidApp:installDebug` |
-| Unit tests (25 tests: pipeline, safety, search, sync, answer cards) | `./gradlew :androidApp:testDebugUnitTest` |
+| Unit tests (44 tests: pipeline, follow-ups, safety, search, sync, record cards) | `./gradlew :androidApp:testDebugUnitTest` |
 | Check that shared code still compiles for iOS | `./gradlew :shared:compileKotlinIosSimulatorArm64` |
 | Release APK (minified) | `./gradlew :androidApp:assembleRelease` |
 
@@ -109,6 +109,65 @@ adb logcat -s KuyaJ.Llm                       # model loading, search_kb calls, 
 adb shell cmd uimode night yes                # dark mode
 ```
 
+## Measuring on a phone
+
+Debug builds include `BenchReceiver` (`androidApp/src/debug/`), which runs questions through the app's real
+answering path and logs timings. It isn't in release builds. Keep the app open while it runs.
+
+**Single questions** (speed, and accuracy of one-turn answers):
+
+```bash
+adb push questions.txt /sdcard/Android/data/ph.bettergov.kuyaj/files/bench.txt   # one question per line
+adb shell am broadcast -n ph.bettergov.kuyaj/.BenchReceiver
+adb logcat -s KuyaJ.Bench KuyaJ.Llm       # one JSON line per answer; first-token time and tokens/s per generation
+```
+
+Each question runs as a new chat. `kuya-j-evals/evals/history_device.py` scores a logcat dump of the 40 history
+questions and summarises first-word time and rate.
+
+### Scoring conversations
+
+`androidApp/src/test/resources/conversations.jsonl` holds scripted multi-turn conversations with pass/fail checks
+per turn: follow-ups, topic switches, free chat, no-record honesty, refusals, language. One JSON object per line:
+
+```json
+{"id": "fu-passport", "tags": ["followup", "fees"], "turns": [
+  {"user": "Magkano ang passport?", "all": ["950"]},
+  {"user": "how about the requirements?", "source": "passport", "any": ["birth certificate", "psa", "id"]}]}
+```
+
+| Check | Passes when |
+|---|---|
+| `any` / `all` / `none` | The reply contains one of / all of / none of these (lowercase, accents and commas removed) |
+| `kind` | The reply is one of these kinds (`MODEL`, `RECORD`, `SYSTEM`, `REFUSAL`) |
+| `source` | One of the reply's records has this in its id |
+| `no_digits` | The reply states no number (nothing invented where there's no record) |
+| `chat` | A real conversational reply: not the fallback, not "no record", no money, no source line |
+
+On a phone, with whatever model the app has loaded:
+
+```bash
+adb push androidApp/src/test/resources/conversations.jsonl /sdcard/Android/data/ph.bettergov.kuyaj/files/conversations.jsonl
+adb shell am broadcast -n ph.bettergov.kuyaj/.BenchReceiver         # multi-turn mode when that file exists
+adb shell cat /sdcard/Android/data/ph.bettergov.kuyaj/files/conversations.out.jsonl > out.jsonl
+python3 ../kuya-j-evals/evals/conversations_device.py androidApp/src/test/resources/conversations.jsonl out.jsonl
+```
+
+Delete `conversations.jsonl` from the phone afterwards, or the next broadcast runs it again instead of `bench.txt`.
+
+On a computer, `ConversationEval` runs the same set through the same `Orchestrator` against a model server. It is
+skipped unless `KUYAJ_EVAL_URL` is set:
+
+```bash
+llama-server -m kuyaj-v3-Q4_K_M.gguf --port 8091 --jinja -c 32768 -np 4
+KUYAJ_EVAL_URL=http://127.0.0.1:8091/v1 ./gradlew :androidApp:testDebugUnitTest --tests '*ConversationEval*'
+cat androidApp/build/eval/conversations.txt
+```
+
+The phone is the reference: it runs the model file and runtime people actually get. A second set that fixes are
+never tuned on lives in `kuya-j-evals/evals/conversations_holdout.jsonl`; run it at the end of a round of changes,
+and before it for a baseline. Current scores are in [Where Kuya J stands](status.md).
+
 ## Adding or changing records
 
 BetterGov.ph records come from the [records pipeline](records-pipeline.md): harvest, review, publish, then copy
@@ -127,5 +186,7 @@ For a hand-written record:
 - Shared code first: if it doesn't need Android, it goes in `shared/commonMain`.
 - Keep the answering rules in code (`Orchestrator`, `Safety`), not in prompts. Prompts can be ignored; code can't.
 - The system prompts must stay byte-identical to the ones the model was trained with
-  (`kuya-j-evals/distill/restructure_v3.py`). Change both together, then retrain.
+  (`kuya-j-evals/distill/restructure_v3.py`). Change both together, then retrain. `CHAT_SYSTEM_PROMPT` is the
+  exception: free chat wasn't trained, so it can be edited freely.
+- Change answering behaviour against the conversation set, on a phone, and say what the score did.
 - Comments marked `ponytail:` name a deliberate shortcut and when to upgrade it.

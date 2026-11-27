@@ -19,6 +19,8 @@ data class Reply(
     val note: String? = null,
     /** What the model read from an attached photo. */
     val photoReading: String? = null,
+    /** Record titles offered when nothing answered the question exactly; tapping one asks it. */
+    val suggestions: List<String> = emptyList(),
 ) {
     enum class Kind { RECORD, MODEL, SYSTEM, REFUSAL }
 }
@@ -54,7 +56,9 @@ class Orchestrator(
     suspend fun reply(input: String, photo: ByteArray? = null, onText: (String) -> Unit = {}): Reply {
         store.awaitReady()
         val reply = route(input.trim(), photo, onText)
-        history.addLast(Turn(input.trim(), reply.text))
+        // A "no record" reply is left out of what the model sees next: with two of them in view it copied the
+        // phrase for a question the records do answer ("magkano philhealth" after "magkano sss").
+        history.addLast(Turn(input.trim(), if (isNoAnswer(reply)) "" else reply.text))
         while (history.size > 3) history.removeFirst()
         lastRecordAnswer = reply.takeIf { it.sources.isNotEmpty() && it.kind != Reply.Kind.REFUSAL }
         return reply
@@ -77,6 +81,10 @@ class Orchestrator(
         // Personal questions to Kuya J ("kumusta ang araw mo?", "mahal mo ba ako?") before search: their everyday words
         // ("araw", "mahal") would otherwise match holiday names or marker text.
         if (PERSONAL.containsMatchIn(plain)) return system(SMALL_TALK_REPLY)
+        // A tapped choice is a record's own title: answer from that record alone. With other records and earlier turns
+        // in view, the model told "SSS pension claim: fees" (which says "Filing is free") that no fee was stated,
+        // a line from the SS number record.
+        if (photo == null) exactRecord(text, onText)?.let { return it }
         // Holiday dates are fixed facts: answered from the record by code.
         if (photo == null) Holidays.answer(text, store.state.records, today())?.let {
             return Reply(withStaleness(it.text), Reply.Kind.RECORD, listOf(it.record))
@@ -104,15 +112,75 @@ class Orchestrator(
         // The photo's text counts like the question: the person supplied it.
         val question = listOfNotNull(text.takeIf { it.isNotEmpty() }, photoReading).joinToString("\n")
 
-        // Tool mode, for a model trained to search: it picks the keywords, the app runs its own search.
-        // Follow-ups and photos stay on the path below, as in training.
-        if (engine != null && photo == null && history.isEmpty()) toolAnswer(engine, question, pinned, onText)?.let { return it }
+        val grounded = grounded(engine, text, question, plain, photo, photoReading, pinned, onText)
+        // Nothing usable from the records and no fact asked for ("tell me a joke", "turuan mo ako ng Bisaya"): just talk.
+        val weak = isNoAnswer(grounded) || (grounded.note != null && (searchQuestion(text).firstOrNull()?.words ?: 0) < 2)
+        if (engine != null && photo == null && weak && SearchIndex.intents(text).none { it in FACT_INTENTS } && !People.isLifeQuestion(text)) {
+            chat(engine, text, onText)?.let { return it }
+        }
+        // Still nothing: instead of a bare "no record", say what the records do have on the topic.
+        if (isNoAnswer(grounded)) offer(text)?.let { return it }
+        return grounded
+    }
+
+    /**
+     * "Magkano sss" has three possible answers in the records (SS number, pension claim, MySSS card) and the model
+     * may search for a fourth. The titles of the records the question itself finds, as choices to tap. Null when
+     * no record shares a real word with the question.
+     */
+    private fun offer(text: String): Reply? {
+        if (searchQuestion(text).isEmpty()) return null
+        val query = if (SearchTerms.continues(text) && history.isNotEmpty()) "${history.last().user} $text" else text
+        val asked = SearchIndex.tokenize(query).toSet()
+        val wanted = SearchIndex.intents(query) // "magkano" puts the fee records first
+        val titles = store.search(query, 12).map { it.record }
+            .filter { r -> SearchIndex.tokenize("${r.title} ${r.keywords.joinToString(" ")}").any { it in asked } }
+            .sortedByDescending { it.category in wanted } // stable: search order within each group
+            .map { it.title.substringBefore(" (part ") }.distinct().take(4)
+        return if (titles.isEmpty()) null else Reply(OFFER, Reply.Kind.SYSTEM, suggestions = titles)
+    }
+
+    private suspend fun exactRecord(text: String, onText: (String) -> Unit): Reply? {
+        val records = store.state.records.filter { it.title.substringBefore(" (part ").equals(text, ignoreCase = true) }.take(TOP_K)
+        if (records.isEmpty()) return null
+        val recordReply = Reply(withStaleness(records.first().content), Reply.Kind.RECORD, records)
+        val engine = llm()?.takeIf { it.isReady }
+        if (engine == null || records.first().verbatim) return recordReply
+        val sources = Safety.sources(records, text, NAMES, checkNames = records.any { it.category == "officials" })
+        val gate = Safety.TokenGate(sources, onText)
+        return checked(recordReply, records, sources, { gate.halted }) { live ->
+            engine.generate(SYSTEM_PROMPT, "CONTEXT:\n${recordsBlock(records)}\n\nQUESTION: $text") { if (live.on) gate.accept(it) }
+        }
+    }
+
+    private fun isNoAnswer(r: Reply) = r.kind == Reply.Kind.SYSTEM && (r.text == FALLBACK || NO_RECORD.containsMatchIn(r.text))
+
+    /** The question's own records: a fragment ("ng pilipinas", "how about the fee?") is searched with the question before it. */
+    private fun searchQuestion(text: String, question: String = text): List<SearchIndex.Hit> {
         var hits = search(question)
-        if (hits.isEmpty() && history.isNotEmpty() && SearchTerms.count(text) <= 4) {
-            hits = search("${history.last().user} $text") // short follow-up
+        if (history.isNotEmpty() && (hits.isEmpty() && SearchTerms.count(text) <= 4 || SearchTerms.continues(text))) {
+            search("${history.last().user} $text").takeIf { it.isNotEmpty() }?.let { hits = it }
+        }
+        return hits
+    }
+
+    /** An answer from the records: the model searches (tool mode) or the app searches for it (context mode). */
+    private suspend fun grounded(
+        engine: LlmEngine?, text: String, question: String, plain: String, photo: ByteArray?, photoReading: String?,
+        pinned: KbRecord?, onText: (String) -> Unit,
+    ): Reply {
+        // Tool mode, for a model trained to search: it sees the conversation, picks the keywords, and the app runs its
+        // own search. Every text turn, so "how about the requirements?" is searched as what it means.
+        // If it then says "no record" although the question's own search found something, the app shows it those
+        // records directly (context mode) before giving up: "sino president" got "wala akong record" this way.
+        val hits = searchQuestion(text, question)
+        if (engine != null && photo == null) toolAnswer(engine, text, question, pinned, onText)?.let {
+            if (!isNoAnswer(it) || hits.isEmpty()) return it
         }
         if (hits.isEmpty() && pinned == null) {
-            val fallback = if (photo == null && SMALL_TALK.containsMatchIn(plain)) SMALL_TALK_REPLY else FALLBACK
+            // With a model, the chat path answers small talk; the canned reply is for phones without one
+            // ("ilan jowa ni Rizal" is not about Kuya J, and the word list can't tell).
+            val fallback = if (photo == null && engine == null && SMALL_TALK.containsMatchIn(plain)) SMALL_TALK_REPLY else FALLBACK
             return Reply(fallback, Reply.Kind.SYSTEM, photoReading = photoReading)
         }
 
@@ -121,7 +189,7 @@ class Orchestrator(
         val recordReply = Reply(withStaleness(top.content), Reply.Kind.RECORD, records, photoReading = photoReading)
         if (engine == null || top.verbatim) return recordReply
 
-        val sources = Safety.sources(records, question, NAMES)
+        val sources = grounding(records, question)
         val gate = Safety.TokenGate(sources, onText)
         return checked(recordReply, records, sources, { gate.halted }) { live ->
             engine.generate(SYSTEM_PROMPT, userMessage(question, records)) { if (live.on) gate.accept(it) }
@@ -129,36 +197,72 @@ class Orchestrator(
     }
 
     /**
+     * Free conversation, for what the records have nothing to say about. The model talks from what it knows, but a
+     * reply that states money or cites a source is dropped: facts come from records only.
+     */
+    private suspend fun chat(engine: LlmEngine, text: String, onText: (String) -> Unit): Reply? {
+        val live = Live()
+        val shown = StringBuilder()
+        val run = runModel(live) { engine.generate(CHAT_SYSTEM_PROMPT, withHistory(text)) { if (live.on) shown.append(it) } }
+        val said = (run as? ModelRun.Done)?.text?.trim().orEmpty()
+        if (said.length < 2 || CHAT_FACTS.containsMatchIn(said)) return null
+        onText(said)
+        return Reply(said, Reply.Kind.SYSTEM)
+    }
+
+    /**
+     * What an answer may state: the records it was given plus those behind the previous answer, since a follow-up
+     * repeats figures from it ("+₱75 if expired" after the fee was already quoted). Names are checked only when an
+     * office holder is in play.
+     */
+    private fun grounding(records: List<KbRecord>, question: String): Safety.Sources {
+        val all = (records + lastRecordAnswer?.sources.orEmpty()).distinctBy { it.id }
+        val names = all.any { it.category == "officials" }
+        return Safety.sources(all, withHistory(question), NAMES, checkNames = names)
+    }
+
+    /** The question with the last turns before it, so the model knows what "it", "siya" or "how about..." refers to. */
+    private fun withHistory(text: String): String = if (history.isEmpty()) text else buildString {
+        appendLine("RECENT CONVERSATION:")
+        history.forEach { appendLine("User: ${it.user}" + if (it.bot.isBlank()) "" else "\n$BOT_NAME: ${it.bot.take(300)}") }
+        appendLine()
+        append("QUESTION: ").append(text)
+    }
+
+    /**
      * The model calls search_kb with English keywords; the app searches (the raw question too if the keywords miss)
      * and checks the answer against what it returned. Null when the model can't search, didn't, or found nothing:
      * the caller then searches the question itself.
      */
-    private suspend fun toolAnswer(engine: LlmEngine, question: String, pinned: KbRecord?, onText: (String) -> Unit): Reply? {
+    private suspend fun toolAnswer(engine: LlmEngine, text: String, question: String, pinned: KbRecord?, onText: (String) -> Unit): Reply? {
         var found = emptyList<KbRecord>()
+        var pin = pinned
         var gate: Safety.TokenGate? = null // made once records arrive; text before any search is never shown
         val live = Live()
         val generated = runModel(live) {
-            engine.generateWithSearch(TOOL_SYSTEM_PROMPT, question, search = { query ->
+            engine.generateWithSearch(TOOL_SYSTEM_PROMPT, withHistory(question), search = { query ->
                 // The question's own top record always gets a place: a misread word ("tagpila" taken for an office)
                 // makes the model's keywords miss what the person asked.
                 val byKeywords = search(query)
-                val byQuestion = search(question)
-                val hits = (listOfNotNull(pinned) + (byKeywords.take(TOP_K - 1) + byQuestion.take(1) + byKeywords.drop(TOP_K - 1)
+                val byQuestion = searchQuestion(text, question)
+                // "kailan siya namatay?" names nobody; the model's keywords ("Jose Rizal death") do.
+                pin = pin ?: People.record(query, store.state.records)
+                val hits = (listOfNotNull(pin) + (byKeywords.take(TOP_K - 1) + byQuestion.take(1) + byKeywords.drop(TOP_K - 1)
                     + byQuestion.drop(1)).map { it.record }).distinctBy { it.id }.take(TOP_K)
                 // ponytail: a second call widens the sources and restarts the gate; the model makes one call in practice.
                 found = (found + hits).distinctBy { it.id }
-                gate = Safety.TokenGate(Safety.sources(found, question, NAMES), onText)
+                gate = Safety.TokenGate(grounding(found, question), onText)
                 if (hits.isEmpty()) "No records found." else recordsBlock(hits)
             }) { if (live.on) gate?.accept(it) }
         }
         if (generated is ModelRun.Done && generated.text == null) return null // not a searching model
         if (found.isEmpty()) return null
         // If the model's answer is withheld, show the record closest to the question ("Bonifacio Day 2026", not 2025).
-        found = (listOfNotNull(pinned) + bySupport(found, question)).distinctBy { it.id }
+        found = (listOfNotNull(pin) + bySupport(found, question)).distinctBy { it.id }
         val top = found.first()
         val recordReply = Reply(withStaleness(top.content), Reply.Kind.RECORD, found)
         if (top.verbatim) return recordReply
-        return verdict(generated, recordReply, found, Safety.sources(found, question, NAMES), gate?.halted == true)
+        return verdict(generated, recordReply, found, grounding(found, question), gate?.halted == true)
     }
 
     private sealed interface ModelRun {
@@ -193,6 +297,12 @@ class Orchestrator(
         val issues = Safety.ungrounded(generated, sources)
         if (halted || issues.isNotEmpty() || generated.length < 2) {
             return recordReply.copy(note = "The AI answer was withheld: ${issues.firstOrNull() ?: "it stated something the records do not"}. The record is shown as written.")
+        }
+        // "Wala akong record..." cites nothing: shown as plain text, without sources or a "checked" mark.
+        if (NO_RECORD.containsMatchIn(generated) && generated.length < 200 && CURRENCY_MARK !in generated) {
+            // Models sometimes add "Source: No record found." to it; there is no source to show.
+            val plain = generated.lines().filterNot { it.trim().startsWith("Source:", ignoreCase = true) }.joinToString("\n").trim()
+            return Reply(plain.ifEmpty { generated }, Reply.Kind.SYSTEM, photoReading = recordReply.photoReading)
         }
         return Reply(withStaleness(generated), Reply.Kind.MODEL, bySupport(records, generated), photoReading = recordReply.photoReading)
     }
@@ -231,7 +341,7 @@ class Orchestrator(
     private fun userMessage(question: String, records: List<KbRecord>): String = buildString {
         if (history.isNotEmpty()) {
             appendLine("RECENT CONVERSATION:")
-            history.forEach { appendLine("User: ${it.user}\n$BOT_NAME: ${it.bot.take(300)}") }
+            history.forEach { appendLine("User: ${it.user}" + if (it.bot.isBlank()) "" else "\n$BOT_NAME: ${it.bot.take(300)}") }
             appendLine()
         }
         appendLine("CONTEXT:")
@@ -250,13 +360,43 @@ class Orchestrator(
 
     private object SearchTerms {
         fun count(text: String) = text.split(Regex("\\s+")).count { it.isNotBlank() }
+
+        private val ASKS = setOf("sino", "ano", "anong", "saan", "kailan", "kelan", "magkano", "paano", "ilan", "bakit", "alin",
+            "who", "what", "when", "where", "how", "which", "why", "pila", "tagpila", "unsa", "kinsa", "asa", "unsaon", "ania", "mano")
+        private val LINKS = Regex("""^(how about|what about|paano naman|e+h?\b|at\b|and\b|ng\b|sa\b|ni\b|kay\b|pati\b|of\b|for\b|in\b)""")
+
+        /**
+         * True for a fragment that only makes sense after the last question: it opens with a linking word, names no
+         * topic at all ("magkano?"), or names one without asking anything ("requirements?"). "Sino ang mga senador?"
+         * names one topic but asks its own question, so it stands alone.
+         */
+        fun continues(text: String): Boolean {
+            val raw = text.lowercase().split(Regex("[^\\p{L}\\p{N}]+")).filter { it.isNotEmpty() }
+            val topics = SearchIndex.tokenize(text).size
+            return count(text) <= 4 && (LINKS.containsMatchIn(text.trim().lowercase()) || topics == 0 || (topics < 2 && raw.none { it in ASKS }))
+        }
     }
 
     companion object {
         const val BOT_NAME = "Kuya J"
         const val TOP_K = 3
+
+        // ponytail: phrase list for the languages the model answers in; a no-record answer worded another way keeps its sources.
+        // Questions asking for one of these are never answered from the model's own knowledge.
+        private val FACT_INTENTS = setOf("fees", "hotlines", "officials", "history")
+        private val NO_RECORD = Regex(
+            """\b(no (saved )?record|don.?t have (a |any )?(saved )?(record|information)|wala\w*( po)?( akong| ako| kong)?( [\w-]+){0,2} (record|rekord|tala|naitala\w*|nakitang|impormasyon)|waray (ako )?(record|rekord)|walay (ako )?(record|rekord)|awan (ti )?(record|rekord))""",
+            RegexOption.IGNORE_CASE,
+        )
         const val RECORD_CHARS = 1200
-        private val NAMES = listOf(BOT_NAME, "BetterGov")
+        private const val CURRENCY_MARK = "₱"
+        // Names the model may say without a record containing them: itself, BetterGov, and the country, which a Filipino
+        // answer names even when the English record doesn't ("Pilipinas" got a correct answer withheld).
+        // Also the Filipino words for offices and titles: a Filipino answer says "Opisina ng Pangulo" for a record that
+        // says "Office of the President". The holder's name, dates and amounts are still checked.
+        private val NAMES = listOf(BOT_NAME, "BetterGov", "Pilipinas", "Philippines", "Filipinas", "Filipino", "Pilipino",
+            "Opisina", "Tanggapan", "Kagawaran", "Kawanihan", "Komisyon", "Pangulo", "Presidente", "Pangalawang", "Bise", "Kalihim",
+            "Senado", "Kongreso", "Kapulungan", "Kinatawan", "Korte", "Suprema", "Mahistrado", "Republika", "Pamahalaan", "Gobyerno")
 
         val SYSTEM_PROMPT = """
             You are $BOT_NAME, a guide to Philippine government services from BetterGov.ph.
@@ -278,6 +418,16 @@ class Orchestrator(
             Begin with the fact. Answer in three sentences or fewer, then end with the source line of the record you used.
         """.trimIndent()
 
+        // Not a trained prompt: free conversation for what isn't in the records. The reply is dropped if it states money
+        // or cites a source (CHAT_FACTS), and questions that ask for a fee, hotline, date or office holder never get here.
+        val CHAT_SYSTEM_PROMPT = """
+            You are $BOT_NAME, a friendly Filipino companion from BetterGov.ph. Chat naturally and helpfully: small talk, jokes, encouragement, language help, simple explanations and everyday questions.
+            Reply in the language the person uses, in three sentences or fewer.
+            You have no saved record for this message. If it asks about a government service, document, fee, date, phone number or who holds an office, say you have no saved record for it; never state those from memory.
+            Never give political opinions, legal advice or medical advice.
+        """.trimIndent()
+        private val CHAT_FACTS = Regex("""₱|\bPHP\b|\bpesos?\b|Source:|https?://""", RegexOption.IGNORE_CASE)
+
         const val PHOTO_SYSTEM = "You read photos of documents, forms, signs and IDs for a government-services assistant."
         const val PHOTO_PROMPT =
             "Transcribe the important text in this photo, then name what kind of document or place it shows in one short line. Do not add facts that are not visible."
@@ -287,7 +437,12 @@ class Orchestrator(
         const val IDENTITY_REPLY =
             "Ako si Kuya J, BetterGov.ph's civic assistant. This version runs fully on your phone and answers from saved, dated records. No government agency operates it."
         const val FALLBACK =
-            "I don't have a saved record for that. Try naming the service and the detail you need, for example \"NBI clearance fee\" or \"SSS hotline\". For anything else, call 8888 or check the agency's official website."
+            "I don't have a saved record for that. Try naming the service and the detail you need, for example \"NBI clearance fee\" or \"SSS hotline\". For anything else, search Google or the agency's official website when you have internet, or call 8888."
+
+        const val OFFER =
+            "Wala akong record niyan. Pero ito ang mayroon ako sa record, pumili ng isa. Kung wala rito ang kailangan mo, " +
+                "i-search mo sa Google o tingnan ang opisyal na website ng ahensya kapag may internet ka. " +
+                "(I have no record of that. Here is what I do have; if it's not here, search Google or the agency's official website.)"
 
         const val SMALL_TALK_REPLY =
             "Hehe, AI lang ako, kaya hindi ako kumakain, tumatanda o umaalis ng bahay. 😄 Ako si Kuya J. Tanungin mo ako tungkol sa serbisyo ng gobyerno, gaya ng NBI clearance, passport, SSS o mga holiday."

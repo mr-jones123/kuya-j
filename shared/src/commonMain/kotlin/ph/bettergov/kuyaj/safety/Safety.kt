@@ -25,6 +25,10 @@ object Safety {
     val TOPIC_BLOCKLIST = listOf(
         "blocked_topic:who should I vote for",
         "blocked_topic:sino ang dapat iboto",
+        "blocked_topic:dapat kong iboto",
+        "blocked_topic:sino ang iboboto",
+        "blocked_topic:who should I vote",
+        "blocked_topic:kinsa akong botohan",
         "blocked_topic:your opinion on",
         "blocked_topic:political opinion",
         "blocked_topic:is the president good",
@@ -129,9 +133,15 @@ object Safety {
         internal val numbers: Set<Double>,
         internal val dates: List<DateParts>,
         internal val known: Set<String>,
+        internal val checkNames: Boolean = true,
     )
 
-    fun sources(records: List<KbRecord>, question: String, extraNames: List<String> = emptyList()): Sources {
+    /**
+     * [checkNames] off skips the unknown-name check: it exists to stop an invented office holder, and elsewhere it
+     * mostly caught Filipino words for what the English record says ("Pamantasan" for "University"). Amounts and dates
+     * are always checked.
+     */
+    fun sources(records: List<KbRecord>, question: String, extraNames: List<String> = emptyList(), checkNames: Boolean = true): Sources {
         val corpus = records.joinToString("\n") { "${it.title}\n${it.content}" }.lowercase()
         val text = (records.map { "${it.title} ${it.content} ${it.keywords.joinToString(" ")}" } +
             question + extraNames + CALENDAR_WORDS).joinToString(" ")
@@ -146,6 +156,7 @@ object Safety {
             numbers = NUMBER.findAll(corpus.replace(",", "")).map { it.value.toDouble() }.toSet(),
             dates = parseDates(corpus).flatMap { it.second },
             known = known,
+            checkNames = checkNames,
         )
     }
 
@@ -159,7 +170,7 @@ object Safety {
         for ((raw, readings) in parseDates(answer)) {
             if (readings.none { r -> s.dates.any { sameDate(r, it) } }) issues += "Date \"$raw\" is not in the records"
         }
-        for (name in unsourcedNames(answer, s.known)) issues += "Name \"$name\" is not in the records"
+        if (s.checkNames) for (name in unsourcedNames(answer, s.known)) issues += "Name \"$name\" is not in the records"
         return issues
     }
 

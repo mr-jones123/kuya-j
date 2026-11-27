@@ -129,6 +129,8 @@ class LiteRtLmEngine(private val context: Context) : LlmEngine {
                             add(Content.Text(user))
                         }
                         val reply = StringBuilder()
+                        var chunks = 0 // the stream delivers about one token per chunk
+                        var firstAt = 0L
                         // withTimeout can't interrupt a blocking native call; cancelProcess() from another thread can.
                         var timedOut = false
                         val watchdog = launch {
@@ -143,7 +145,11 @@ class LiteRtLmEngine(private val context: Context) : LlmEngine {
                             // Handle both delta and cumulative streams.
                             val delta = if (chunk.startsWith(reply)) chunk.substring(reply.length) else chunk
                             if (delta.isNotEmpty()) {
-                                if (reply.isEmpty()) Log.i(TAG, "first token +${System.currentTimeMillis() - t0}ms")
+                                if (reply.isEmpty()) {
+                                    firstAt = System.currentTimeMillis()
+                                    Log.i(TAG, "first token +${firstAt - t0}ms")
+                                }
+                                chunks++
                                 reply.append(delta)
                                 onText(delta)
                             }
@@ -152,7 +158,9 @@ class LiteRtLmEngine(private val context: Context) : LlmEngine {
                             watchdog.cancel()
                         }
                         if (timedOut) throw IllegalStateException("generation timed out")
-                        Log.i(TAG, "done +${System.currentTimeMillis() - t0}ms, ${reply.length} chars")
+                        val now = System.currentTimeMillis()
+                        val rate = if (chunks > 1 && now > firstAt) (chunks - 1) * 1000.0 / (now - firstAt) else 0.0
+                        Log.i(TAG, "done +${now - t0}ms, ${reply.length} chars, $chunks chunks, ${"%.1f".format(rate)} tok/s")
                         reply.toString().trim()
                     }
                 }

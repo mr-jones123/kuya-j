@@ -392,6 +392,9 @@ ROLE_FIL = {"vice president": ["Bise Presidente", "Pangalawang Pangulo"], "presi
             "administrator": ["Administrador"], "commissioner": ["Komisyoner"], "governor": ["Gobernador"]}
 
 
+NATIONAL = {"office of the president": ("President", "Pangulo"), "office of the vice president": ("Vice President", "Pangalawang Pangulo")}
+
+
 def head_keywords(role: str, name: str, acr: str | None) -> list[str]:
     r = role.lower()
     fil = next((v for k, v in ROLE_FIL.items() if k in r), [])
@@ -460,6 +463,15 @@ def directory(commit: str) -> list[dict]:
             h = heads[0]
             body = f"As listed by BetterGov.ph on {listed}, {person(h['name'])} is {h.get('role', 'head')} of the {name}. " + contacts(e)
             title, kws = f"{name}: {h.get('role', 'head')}", head_keywords(h.get("role", "head"), name, acr)
+            # The country's own President and Vice President: people ask "sino ang pangulo ng Pilipinas", and a model
+            # searches "president of the Philippines", which otherwise finds the Cultural Center of the Philippines' President.
+            national = NATIONAL.get(name.lower())
+            if national:
+                body = (f"As listed by BetterGov.ph on {listed}, {person(h['name'])} is the {national[0]} of the Philippines "
+                        f"({name}). ") + contacts(e)
+                title = f"{national[0]} of the Philippines ({national[1]} ng Pilipinas): {name}"
+                kws += [f"{national[0]} of the Philippines", f"current Philippine {national[0]}", f"{national[1]} ng Pilipinas",
+                        f"sino ang {national[1]} ng bansa", "Republic of the Philippines", "Republika"]
         else:  # most offices list contacts only
             body = f"As listed by BetterGov.ph on {listed}, the {name}{f' ({acr})' if acr else ''} can be contacted here. " + contacts(e)
             title = f"{name}{f' ({acr})' if acr else ''}: contacts"

@@ -58,9 +58,16 @@ multiplied by 1.5 (`SearchIndex.intents()`):
 | magkano, tagpila, pila, mano, tagpira, magkanu, pigara, fee, bayad, presyo, price, cost, how much | fee records |
 | hotline, helpline, number, numero, contact, tawag, call, phone | hotline records |
 | requirements, kailangan, kinahanglan, kasapulan, documents | requirements records |
+| born, ipinanganak, died, namatay, history, kasaysayan, founded, itinatag | history records |
+| sino, who, kinsa, siasino | office-holder records |
 
 So "magkano ang NBI clearance" finds the fee, not the NBI hotline or the steps, even though all three mention
-"NBI clearance".
+"NBI clearance". And "Sino ang Pangulo ng Pilipinas?" finds who holds the office now, not the marker of a past
+President whose title also says "Pangulo ng Republika ng Pilipinas".
+
+The same words decide two other things: fee, hotline, office-holder and history words keep a question out of
+[free chat](answering.md#3-when-the-records-have-nothing), and a "magkano" question lists fee records first when
+Kuya J offers what it has.
 
 ### Historical markers are searched by title and keywords
 

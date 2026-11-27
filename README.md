@@ -15,8 +15,8 @@ synthetic examples in Philippine languages (CC BY 4.0).
 
 <p>
   <img src="docs/images/home.png" width="230" alt="Home screen: a blue welcome band, six topic tiles and example questions">
-  <img src="docs/images/fee.png" width="230" alt="An answer card showing PHP 130 for the NBI clearance, with its source">
-  <img src="docs/images/hotline.png" width="230" alt="A hotline answer card with a Call 1455 button">
+  <img src="docs/images/answer.png" width="230" alt="A plain-text answer giving the NBI clearance fee, with a Sources chip under it">
+  <img src="docs/images/sources.png" width="230" alt="The Sources chip opened, showing the record card with the fee and its source">
   <img src="docs/images/dark.png" width="230" alt="The home screen in dark mode">
 </p>
 
@@ -32,11 +32,12 @@ the source attached so they can trust it. [Read the full vision](docs/vision.md)
 | Feature | In short | Docs |
 |---|---|---|
 | Works offline | Records and the AI model live on the phone; chat never needs the internet | [Architecture](docs/architecture.md) |
-| Answers from records only | Every fee, date and name in an answer must appear in a saved record, or the record is shown instead | [How answering works](docs/answering.md) |
+| Facts from records only | Every fee, date and office holder in an answer must appear in a saved record, or the record is shown instead | [How answering works](docs/answering.md) |
+| Holds a conversation | Follow-ups ("how about the requirements?") are understood from the last turns; small talk and everyday questions are answered freely; a miss lists what the records do have | [How answering works](docs/answering.md#2-tool-mode-the-model-searches-on-every-turn) |
 | 2,114 records built in | BetterGov.ph's guides (NBI, passport, PSA, TIN, PhilHealth, Pag-IBIG...), holidays, government directory, hotlines, visas and history timeline; 1,635 NHCP historical markers; and Airgap's records | [Records](docs/records.md) · [Pipeline](docs/records-pipeline.md) |
-| Fixed facts answered by code | Holiday dates and when a historical figure was born or died come straight from the record, instantly, with no model | [How answering works](docs/answering.md#1-controls-that-run-before-any-search) |
+| Fixed facts picked by code | Holiday dates come straight from the record, instantly, with no model; for births and deaths code picks the right historical marker and the model words it | [How answering works](docs/answering.md#1-before-any-search) |
 | Any Philippine language | The model replies in the language of the question | [The v3 model](docs/model-v3.md) |
-| Answer cards | The key value (fee, hotline, date) large, a call button for hotlines, the source and its checked date | [The app UI](docs/ui.md) |
+| Sources one tap away | Answers are plain text with a Sources chip; it opens a card per record with the key value (fee, hotline, date) large, the record as written and its checked date | [The app UI](docs/ui.md#answers-and-sources) |
 | Search | A small BM25 search engine over the records, tolerant of typos and partial words | [Search](docs/search.md) |
 | Safety | Refuses political opinions, legal and medical advice, and prompt probing; never invents an official | [Safety](docs/safety.md) |
 | Reads photos | Attach a photo of a form or sign; the model reads it and Kuya J answers from the records | [How answering works](docs/answering.md#photos) |
@@ -58,7 +59,8 @@ flowchart LR
     G -- no --> R2
 ```
 
-The [architecture page](docs/architecture.md) walks through each part.
+The [architecture page](docs/architecture.md) walks through each part, and
+[Where Kuya J stands](docs/status.md) has the current measurements, what was fixed last, and what it still gets wrong.
 
 ## Project layout
 

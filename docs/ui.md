@@ -7,9 +7,9 @@ gives behaviour and accessibility without a look; Kuya J styles everything itsel
 | File | What it holds |
 |---|---|
 | `App.kt` | `KuyaJApp(...)`: the root, the chat screen with the settings sheet over it |
-| `ChatScreen.kt` | Home, the conversation, answer cards, the message composer |
+| `ChatScreen.kt` | Home, the conversation, answers with their Sources chip and record cards, the message composer |
 | `SettingsSheet.kt` | Records status, the AI model, About |
-| `AnswerFacts.kt` | `keyFact()`: the one value an answer card shows large |
+| `AnswerFacts.kt` | `keyFact()`: the one value a record card shows large |
 | `Categories.kt` | Label, icon and colour per record category |
 | `Theme.kt` | Colours (light and dark), the Figtree type scale |
 | `Components.kt` | Buttons, icon buttons, pills, the typing dots |
@@ -34,22 +34,43 @@ change; a topic should only ask what the records can answer.
 
 <br clear="right">
 
-## Answer cards
+## Answers and sources
 
-<img src="images/hotline.png" width="260" align="right" alt="Two answer cards">
+<img src="images/answer.png" width="260" align="right" alt="An answer in plain text with a Sources chip under it">
 
-Any answer that comes from a record (`RECORD` or `MODEL` reply) is a card:
+An answer is **plain text**, the same while the model types it and after it finishes, so nothing swaps out at the
+end. Under an answer that came from records (`RECORD` or `MODEL` reply):
 
-1. **Header:** the category and agency (*Fee · NBI*), and a badge: *Official record* (shown as written) or
-   *Checked against record* (the model's wording, which passed the [grounding check](safety.md#the-grounding-check)).
-2. **Key value**, large: a fee (PHP 130), a hotline (1455), or a date (20 March 2026), with the record's title
-   under it.
-3. **The answer text**, without its trailing source line.
-4. **A note** if the AI answer was withheld or timed out.
-5. **Call button** for hotlines: opens the dialer with the number filled in.
-6. **Source row:** publisher, website, and the date: "checked" when someone verified the source then, "listed"
+1. **A note** if the AI answer was withheld or timed out, saying why.
+2. **Call button** for hotlines: opens the dialer with the number filled in.
+3. **A Sources chip**: a stacked badge per kind of record and "Source" or "Sources · 3". Beside it, a badge:
+   *Checked against record* (the model's wording, which passed the
+   [grounding check](safety.md#the-grounding-check)) or *Official record* (shown as written).
+
+<br clear="right">
+
+<img src="images/sources.png" width="260" align="right" alt="The Sources chip opened: a record card with the fee large, the record text and its source">
+
+Tapping the chip opens **one card per record** the answer came from; tapping again closes them. Each card has:
+
+1. **Header:** the category and agency (*Fee · NBI*).
+2. **Key value**, large: a fee (₱160), a hotline (1455), or a date (20 March 2026), with the record's title.
+3. **The record as written.** Left out when the record's text is already the answer above.
+4. **Source row:** publisher, website, and the date: "checked" when someone verified the source then, "listed"
    when it's the date BetterGov.ph last listed it ([why](records-pipeline.md#dates-checked-or-listed)). Tap to
    open the page.
+
+<br clear="right">
+
+### Choices when nothing answers exactly
+
+<img src="images/offer.png" width="260" align="right" alt="A no-record reply listing four record titles as tappable chips">
+
+When Kuya J has no record of what was asked but has records on the topic, the reply lists their titles as chips
+(`Reply.suggestions`). Tapping one sends that title as the next message, which is answered from that record alone
+([how](answering.md#3-when-the-records-have-nothing)).
+
+<br clear="right">
 
 ### Where the key value comes from
 
@@ -63,9 +84,8 @@ one the record contains:
 | holidays | A single date in the title, written as `20 March 2026` | A list of dates shows no value |
 | others | none | |
 
-`KeyFactTest` checks this against every built-in record, including that each value appears in its record. On an
-AI answer, the value is only shown if the answer states it (its digits, or a date's day and year), so a "no record"
-answer never sits under a big date.
+`KeyFactTest` checks this against every built-in record, including that each value appears in its record. The value
+is shown inside the record's card, and the Call button appears only if the answer itself states that number.
 
 Refusals show in a grey box; greetings and other system replies are plain text.
 
@@ -90,7 +110,7 @@ Opened from the sliders icon. Three sections:
 - **Status bar:** white icons over the blue welcome band and in dark mode, dark icons over the light chat
   (`MainActivity`).
 
-<img src="images/dark.png" width="200" alt="Dark home"> <img src="images/dark-answer.png" width="200" alt="Dark answer card">
+<img src="images/dark.png" width="200" alt="Dark home"> <img src="images/dark-answer.png" width="200" alt="A record card in dark mode (older layout)">
 
 ## Accessibility
 
